@@ -6,11 +6,11 @@ export const reportsRoutes = new Hono<{ Bindings: Bindings }>();
 
 // Get yearly report data
 reportsRoutes.get('/yearly/:year', async (c) => {
-    const year = parseInt(c.req.param('year'));
-    const db = c.env.DB;
+  const year = parseInt(c.req.param('year'));
+  const db = c.env.DB;
 
-    // Get monthly totals by category
-    const monthlyByCategory = await db.prepare(`
+  // Get monthly totals by category
+  const monthlyByCategory = await db.prepare(`
     WITH monthly_transactions AS (
       SELECT 
         CAST(strftime('%m', date) AS INTEGER) as month,
@@ -41,8 +41,8 @@ reportsRoutes.get('/yearly/:year', async (c) => {
     ORDER BY c.sort_order, m.month
   `).bind(DEFAULT_USER_ID, String(year), DEFAULT_USER_ID, year).all();
 
-    // Get budget vs actual by month
-    const budgetVsActual = await db.prepare(`
+  // Get budget vs actual by month
+  const budgetVsActual = await db.prepare(`
     WITH monthly_budgets AS (
       SELECT month, SUM(budget_cents) as total_budget
       FROM budgets
@@ -82,8 +82,8 @@ reportsRoutes.get('/yearly/:year', async (c) => {
     ORDER BY b.month
   `).bind(DEFAULT_USER_ID, year, DEFAULT_USER_ID, String(year), DEFAULT_USER_ID, year).all();
 
-    // Get most over-budget categories
-    const overBudgetLeaders = await db.prepare(`
+  // Get most over-budget categories
+  const overBudgetLeaders = await db.prepare(`
     WITH category_variance AS (
       SELECT 
         c.id as category_id,
@@ -121,71 +121,106 @@ reportsRoutes.get('/yearly/:year', async (c) => {
     LIMIT 5
   `).bind(DEFAULT_USER_ID, year, DEFAULT_USER_ID, String(year), DEFAULT_USER_ID, year).all();
 
-    // Build monthly totals for stacked chart
-    const monthlyTotals: Record<number, Record<string, number>> = {};
-    for (let m = 1; m <= 12; m++) {
-        monthlyTotals[m] = {};
-    }
+  // Get category totals for the year
+  const categoryTotals = await db.prepare(`
+    WITH tx_totals AS (
+      SELECT category_id, SUM(amount_cents) as total_cents
+      FROM transactions
+      WHERE user_id = ? AND strftime('%Y', date) = ?
+      GROUP BY category_id
+    ),
+    rollup_totals AS (
+      SELECT category_id, SUM(actual_cents) as total_cents
+      FROM monthly_rollups
+      WHERE user_id = ? AND year = ?
+      GROUP BY category_id
+    ),
+    combined AS (
+      SELECT category_id, SUM(total_cents) as total_cents
+      FROM (
+        SELECT * FROM tx_totals
+        UNION ALL
+        SELECT * FROM rollup_totals
+      )
+      GROUP BY category_id
+    )
+    SELECT 
+      c.id as category_id,
+      c.name as category_name,
+      c.color as category_color,
+      combined.total_cents
+    FROM combined
+    JOIN categories c ON combined.category_id = c.id
+    WHERE combined.total_cents > 0
+    ORDER BY combined.total_cents DESC
+  `).bind(DEFAULT_USER_ID, String(year), DEFAULT_USER_ID, year).all();
 
-    for (const row of (monthlyByCategory.results || []) as any[]) {
-        if (!monthlyTotals[row.month]) {
-            monthlyTotals[row.month] = {};
-        }
-        monthlyTotals[row.month][row.category_name] = row.actual_cents;
-    }
+  // Build monthly totals for stacked chart
+  const monthlyTotals: Record<number, Record<string, number>> = {};
+  for (let m = 1; m <= 12; m++) {
+    monthlyTotals[m] = {};
+  }
 
-    return c.json({
-        year,
-        monthly_by_category: monthlyByCategory.results || [],
-        monthly_totals: monthlyTotals,
-        budget_vs_actual: budgetVsActual.results || [],
-        over_budget_leaders: overBudgetLeaders.results || [],
-    });
+  for (const row of (monthlyByCategory.results || []) as any[]) {
+    if (!monthlyTotals[row.month]) {
+      monthlyTotals[row.month] = {};
+    }
+    monthlyTotals[row.month][row.category_name] = row.actual_cents;
+  }
+
+  return c.json({
+    year,
+    monthly_by_category: monthlyByCategory.results || [],
+    monthly_totals: monthlyTotals,
+    budget_vs_actual: budgetVsActual.results || [],
+    over_budget_leaders: overBudgetLeaders.results || [],
+    category_totals: categoryTotals.results || [],
+  });
 });
 
 // Export transactions as CSV
 reportsRoutes.get('/export/csv', async (c) => {
-    const db = c.env.DB;
-    const year = c.req.query('year');
-    const month = c.req.query('month');
+  const db = c.env.DB;
+  const year = c.req.query('year');
+  const month = c.req.query('month');
 
-    let sql = `
+  let sql = `
     SELECT t.date, t.amount_cents, t.merchant, c.name as category, t.note
     FROM transactions t
     JOIN categories c ON t.category_id = c.id
     WHERE t.user_id = ?
   `;
-    const params: (string | number)[] = [DEFAULT_USER_ID];
+  const params: (string | number)[] = [DEFAULT_USER_ID];
 
-    if (year) {
-        sql += ` AND strftime('%Y', t.date) = ?`;
-        params.push(year);
-    }
-    if (month) {
-        sql += ` AND strftime('%m', t.date) = ?`;
-        params.push(month.padStart(2, '0'));
-    }
+  if (year) {
+    sql += ` AND strftime('%Y', t.date) = ?`;
+    params.push(year);
+  }
+  if (month) {
+    sql += ` AND strftime('%m', t.date) = ?`;
+    params.push(month.padStart(2, '0'));
+  }
 
-    sql += ` ORDER BY t.date ASC`;
+  sql += ` ORDER BY t.date ASC`;
 
-    const result = await db.prepare(sql).bind(...params).all();
+  const result = await db.prepare(sql).bind(...params).all();
 
-    // Build CSV
-    const rows = (result.results || []) as any[];
-    const header = 'Date,Amount,Merchant,Category,Note';
-    const csvRows = rows.map(row => {
-        const amount = (row.amount_cents / 100).toFixed(2);
-        const merchant = `"${(row.merchant || '').replace(/"/g, '""')}"`;
-        const note = `"${(row.note || '').replace(/"/g, '""')}"`;
-        return `${row.date},${amount},${merchant},${row.category},${note}`;
-    });
+  // Build CSV
+  const rows = (result.results || []) as any[];
+  const header = 'Date,Amount,Merchant,Category,Note';
+  const csvRows = rows.map(row => {
+    const amount = (row.amount_cents / 100).toFixed(2);
+    const merchant = `"${(row.merchant || '').replace(/"/g, '""')}"`;
+    const note = `"${(row.note || '').replace(/"/g, '""')}"`;
+    return `${row.date},${amount},${merchant},${row.category},${note}`;
+  });
 
-    const csv = [header, ...csvRows].join('\n');
+  const csv = [header, ...csvRows].join('\n');
 
-    return new Response(csv, {
-        headers: {
-            'Content-Type': 'text/csv',
-            'Content-Disposition': `attachment; filename="transactions${year ? `-${year}` : ''}${month ? `-${month}` : ''}.csv"`,
-        },
-    });
+  return new Response(csv, {
+    headers: {
+      'Content-Type': 'text/csv',
+      'Content-Disposition': `attachment; filename="transactions${year ? `-${year}` : ''}${month ? `-${month}` : ''}.csv"`,
+    },
+  });
 });

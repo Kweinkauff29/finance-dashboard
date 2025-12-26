@@ -4,6 +4,25 @@ import { DEFAULT_USER_ID, type Transaction } from '../db/types';
 
 export const transactionsRoutes = new Hono<{ Bindings: Bindings }>();
 
+// Get merchant autocomplete suggestions - must be before /:id routes
+transactionsRoutes.get('/merchants/autocomplete', async (c) => {
+    const db = c.env.DB;
+    const query = c.req.query('q') || '';
+
+    const result = await db.prepare(`
+    SELECT DISTINCT merchant, COUNT(*) as count
+    FROM transactions
+    WHERE user_id = ? AND merchant LIKE ? AND merchant IS NOT NULL
+    GROUP BY merchant
+    ORDER BY count DESC
+    LIMIT 10
+  `).bind(DEFAULT_USER_ID, `%${query}%`).all();
+
+    return c.json({
+        merchants: (result.results || []).map((r: any) => r.merchant),
+    });
+});
+
 // List transactions with search and filters
 transactionsRoutes.get('/', async (c) => {
     const db = c.env.DB;
@@ -219,23 +238,4 @@ transactionsRoutes.post('/:id/duplicate', async (c) => {
         success: true,
         id: result?.id,
     }, 201);
-});
-
-// Get merchant autocomplete suggestions
-transactionsRoutes.get('/merchants/autocomplete', async (c) => {
-    const db = c.env.DB;
-    const query = c.req.query('q') || '';
-
-    const result = await db.prepare(`
-    SELECT DISTINCT merchant, COUNT(*) as count
-    FROM transactions
-    WHERE user_id = ? AND merchant LIKE ? AND merchant IS NOT NULL
-    GROUP BY merchant
-    ORDER BY count DESC
-    LIMIT 10
-  `).bind(DEFAULT_USER_ID, `%${query}%`).all();
-
-    return c.json({
-        merchants: (result.results || []).map((r: any) => r.merchant),
-    });
 });

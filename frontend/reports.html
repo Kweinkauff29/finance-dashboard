@@ -177,15 +177,72 @@
             <!-- Year Selector -->
             <div class="year-selector">
                 <button id="prevYear" aria-label="Previous year">←</button>
-                <span class="current-year" id="currentYear">2026</span>
+                <span class="current-year" id="currentYear">2025</span>
                 <button id="nextYear" aria-label="Next year">→</button>
+            </div>
+
+            <!-- Year Summary -->
+            <div class="report-card"
+                style="background: linear-gradient(135deg, var(--bg-surface) 0%, var(--primary-light) 100%);">
+                <div class="report-header">
+                    <h2 class="report-title">
+                        <span class="icon">📊</span>
+                        Year Summary
+                    </h2>
+                </div>
+                <div class="report-body">
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--spacing-lg);">
+                        <div style="text-align: center;">
+                            <div
+                                style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: var(--spacing-xs);">
+                                Total Spent</div>
+                            <div id="yearTotalSpent"
+                                style="font-family: var(--font-mono); font-weight: 700; font-size: 1.5rem;">$0</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div
+                                style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: var(--spacing-xs);">
+                                Total Budget</div>
+                            <div id="yearTotalBudget"
+                                style="font-family: var(--font-mono); font-weight: 700; font-size: 1.5rem;">$0</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div
+                                style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: var(--spacing-xs);">
+                                Avg Monthly</div>
+                            <div id="yearAvgMonthly"
+                                style="font-family: var(--font-mono); font-weight: 700; font-size: 1.5rem;">$0</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div
+                                style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: var(--spacing-xs);">
+                                Net Variance</div>
+                            <div id="yearNetVariance"
+                                style="font-family: var(--font-mono); font-weight: 700; font-size: 1.5rem;"
+                                class="positive">$0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Category Breakdown -->
+            <div class="report-card">
+                <div class="report-header">
+                    <h2 class="report-title">
+                        <span class="icon">📦</span>
+                        Spending by Category
+                    </h2>
+                </div>
+                <div class="report-body" id="categoryBreakdown">
+                    <div class="skeleton" style="height: 200px;"></div>
+                </div>
             </div>
 
             <!-- Monthly Overview -->
             <div class="report-card">
                 <div class="report-header">
                     <h2 class="report-title">
-                        <span class="icon">📊</span>
+                        <span class="icon">📅</span>
                         Monthly Spending
                     </h2>
                 </div>
@@ -296,7 +353,7 @@
         import { initApp, showToast } from './js/app.js';
 
         // State
-        let currentYear = new Date().getFullYear();
+        let currentYear = 2025; // Default to 2025 for financial year view
         let reportData = null;
 
         // Initialize
@@ -338,6 +395,8 @@
         async function loadReport() {
             try {
                 reportData = await api.getYearlyReport(currentYear);
+                renderYearSummary();
+                renderCategoryBreakdown();
                 renderMonthlyGrid();
                 renderBudgetChart();
                 renderLeaderboard();
@@ -345,6 +404,67 @@
                 console.error('Failed to load report:', err);
                 showToast('Failed to load report', 'error');
             }
+        }
+
+        function renderYearSummary() {
+            const bva = reportData.budget_vs_actual || [];
+
+            // Calculate totals
+            let totalSpent = 0;
+            let totalBudget = 0;
+            let monthsWithData = 0;
+
+            bva.forEach(m => {
+                totalSpent += m.actual_cents || 0;
+                totalBudget += m.budget_cents || 0;
+                if (m.actual_cents > 0) monthsWithData++;
+            });
+
+            const avgMonthly = monthsWithData > 0 ? totalSpent / monthsWithData : 0;
+            const netVariance = totalBudget - totalSpent;
+
+            document.getElementById('yearTotalSpent').textContent = formatCurrency(totalSpent);
+            document.getElementById('yearTotalBudget').textContent = formatCurrency(totalBudget);
+            document.getElementById('yearAvgMonthly').textContent = formatCurrency(avgMonthly);
+
+            const varianceEl = document.getElementById('yearNetVariance');
+            varianceEl.textContent = formatCurrency(netVariance, true);
+            varianceEl.className = netVariance >= 0 ? 'positive' : 'negative';
+        }
+
+        function renderCategoryBreakdown() {
+            const container = document.getElementById('categoryBreakdown');
+            const categories = reportData.category_totals || [];
+
+            if (categories.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <p>No spending data for this year</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Find max for bar width calculation
+            const maxSpent = Math.max(...categories.map(c => c.total_cents), 1);
+
+            container.innerHTML = categories.map(c => {
+                const pct = (c.total_cents / maxSpent) * 100;
+                return `
+                    <div style="margin-bottom: var(--spacing-md);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-xs);">
+                            <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                                <span style="width: 12px; height: 12px; border-radius: 50%; background: ${c.category_color};"></span>
+                                <span>${c.category_name}</span>
+                            </div>
+                            <span style="font-family: var(--font-mono); font-weight: 600;">${formatCurrency(c.total_cents)}</span>
+                        </div>
+                        <div style="height: 8px; background: var(--bg-surface-3); border-radius: var(--radius-full); overflow: hidden;">
+                            <div style="height: 100%; width: ${pct}%; background: ${c.category_color}; border-radius: var(--radius-full);"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
         function renderMonthlyGrid() {

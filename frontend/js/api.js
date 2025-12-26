@@ -3,7 +3,7 @@
 // Use local worker in development, deployed worker in production
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://127.0.0.1:8787/api'
-    : 'https://finance-dashboard-api.kweinkauff29.workers.dev/api';
+    : 'https://finance-dashboard-api.bonitaspringsrealtors.workers.dev/api';
 
 // Helper to format cents as currency
 export function formatCurrency(cents, showSign = false) {

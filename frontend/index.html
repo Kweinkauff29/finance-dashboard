@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finance Dashboard</title>
+  <meta name="description" content="Personal finance dashboard - track budgets, spending, and savings goals">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div class="page">
+    <!-- App Header -->
+    <header class="app-header container">
+      <div class="header-top">
+        <div class="app-logo">💰 Finance</div>
+        <div class="month-selector">
+          <button data-action="prev" aria-label="Previous month">←</button>
+          <span class="current-month">January 2026</span>
+          <button data-action="next" aria-label="Next month">→</button>
+        </div>
+      </div>
+
+      <!-- Summary Strip -->
+      <div class="summary-strip" id="summaryStrip">
+        <div class="summary-item">
+          <div class="summary-label">Base Income</div>
+          <div class="summary-value" id="baseIncome">$0</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">Bonus Savings</div>
+          <div class="summary-value" id="bonusSavings">$0</div>
+        </div>
+        <div class="summary-item featured">
+          <div class="summary-label">Remaining Budget</div>
+          <div class="summary-value positive" id="remainingBudget">$0</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container">
+      <!-- Budget Health Card -->
+      <section class="card mb-lg" id="budgetHealthCard">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span class="icon">📊</span>
+            Budget Health
+          </h2>
+          <a href="budgets.html" class="text-sm text-muted">Edit →</a>
+        </div>
+        <div class="card-body" id="budgetHealthBody">
+          <div class="skeleton" style="height: 200px;"></div>
+        </div>
+      </section>
+
+      <!-- Two Column Grid on larger screens -->
+      <div class="cards-grid">
+        <!-- Rainy Day Fund Card -->
+        <section class="card mb-lg" id="rainyDayCard">
+          <div class="card-header">
+            <h2 class="card-title">
+              <span class="icon">🌧️</span>
+              Rainy Day Fund
+            </h2>
+            <a href="goals.html" class="text-sm text-muted">Manage →</a>
+          </div>
+          <div class="card-body" id="rainyDayBody">
+            <div class="skeleton" style="height: 80px;"></div>
+          </div>
+        </section>
+
+        <!-- Top Merchants Card -->
+        <section class="card mb-lg" id="merchantsCard">
+          <div class="card-header">
+            <h2 class="card-title">
+              <span class="icon">🏪</span>
+              Top Merchants
+            </h2>
+          </div>
+          <div class="card-body" id="merchantsBody">
+            <div class="skeleton" style="height: 150px;"></div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Spending Trend Card -->
+      <section class="card mb-lg" id="trendCard">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span class="icon">📈</span>
+            Spending Trend
+          </h2>
+          <a href="calendar.html" class="text-sm text-muted">Calendar →</a>
+        </div>
+        <div class="card-body">
+          <div class="trend-chart" id="trendChart">
+            <canvas id="trendCanvas"></canvas>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Floating Action Button -->
+    <button class="fab" id="fabAdd" aria-label="Add expense">+</button>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+      <div class="nav-items">
+        <a href="index.html" class="nav-item active">
+          <span class="icon">🏠</span>
+          Home
+        </a>
+        <a href="calendar.html" class="nav-item">
+          <span class="icon">📅</span>
+          Calendar
+        </a>
+        <a href="transactions.html" class="nav-item">
+          <span class="icon">💳</span>
+          Transactions
+        </a>
+        <a href="budgets.html" class="nav-item">
+          <span class="icon">📋</span>
+          Budgets
+        </a>
+        <a href="goals.html" class="nav-item">
+          <span class="icon">🎯</span>
+          Goals
+        </a>
+      </div>
+    </nav>
+  </div>
+
+  <!-- Quick Add Modal -->
+  <div class="modal-overlay" id="quickAddModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Add Expense</h3>
+        <button class="modal-close" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="quickAddForm">
+          <div class="form-group">
+            <label class="form-label" for="amount">Amount</label>
+            <input type="text" id="amount" class="form-input large" placeholder="$0.00" inputmode="decimal" required>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="merchant">Merchant</label>
+              <input type="text" id="merchant" class="form-input" placeholder="e.g. ALDI" autocomplete="off">
+              <div class="merchant-suggestions hidden" id="merchantSuggestions"></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="date">Date</label>
+              <input type="date" id="date" class="form-input" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Category</label>
+            <div class="category-pills" id="categoryPills"></div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="note">Note (optional)</label>
+            <input type="text" id="note" class="form-input" placeholder="Add a note...">
+          </div>
+
+          <!-- Quick Templates -->
+          <div class="form-group">
+            <label class="form-label">Quick Templates</label>
+            <div class="category-pills" id="templatePills">
+              <button type="button" class="category-pill" data-template="xfinity">Xfinity $85</button>
+              <button type="button" class="category-pill" data-template="fpl">FPL</button>
+              <button type="button" class="category-pill" data-template="chewy">Chewy $55</button>
+              <button type="button" class="category-pill" data-template="car">Car Payment $195</button>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-block btn-lg">
+            Save Expense
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { api, formatCurrency, dollarsToCents, getMonthName } from './js/api.js';
+    import { initApp, getCurrentPeriod, showToast, openModal, closeModal, setCategoryColors, getLastUsedCategory, setLastUsedCategory, debounce } from './js/app.js';
+
+    // State
+    let categories = [];
+    let selectedCategory = null;
+
+    // Initialize app
+    initApp();
+
+    // Load initial data
+    loadDashboard();
+
+    // Listen for month changes
+    window.addEventListener('periodchange', loadDashboard);
+
+    // FAB click handler
+    document.getElementById('fabAdd').addEventListener('click', () => {
+      openQuickAdd();
+    });
+
+    // Quick add form submission
+    document.getElementById('quickAddForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await saveExpense();
+    });
+
+    // Template buttons
+    document.getElementById('templatePills').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-template]');
+      if (!btn) return;
+      applyTemplate(btn.dataset.template);
+    });
+
+    // Merchant autocomplete
+    const merchantInput = document.getElementById('merchant');
+    merchantInput.addEventListener('input', debounce(async (e) => {
+      const q = e.target.value;
+      if (q.length < 2) {
+        document.getElementById('merchantSuggestions').classList.add('hidden');
+        return;
+      }
+      try {
+        const { merchants } = await api.getMerchantSuggestions(q);
+        showMerchantSuggestions(merchants);
+      } catch (err) {
+        console.error('Merchant suggestions failed:', err);
+      }
+    }, 300));
+
+    async function loadDashboard() {
+      const { year, month } = getCurrentPeriod();
+      
+      try {
+        // Load categories first
+        const catResult = await api.getCategories();
+        categories = catResult.categories;
+        setCategoryColors(categories);
+        renderCategoryPills();
+
+        // Load month summary
+        const summary = await api.getMonthSummary(year, month);
+        renderSummary(summary);
+        renderBudgetHealth(summary.budget_health);
+        renderTopMerchants(summary.top_merchants);
+        renderTrendChart(summary.daily_totals, year, month);
+
+        // Load rainy day goal
+        const { goals } = await api.getGoals();
+        const rainyDay = goals.find(g => g.is_rainy_day);
+        renderRainyDay(rainyDay);
+
+      } catch (err) {
+        console.error('Failed to load dashboard:', err);
+        showToast('Failed to load dashboard data', 'error');
+      }
+    }
+
+    function renderSummary(summary) {
+      const baseIncome = document.getElementById('baseIncome');
+      const bonusSavings = document.getElementById('bonusSavings');
+      const remaining = document.getElementById('remainingBudget');
+
+      baseIncome.textContent = formatCurrency(summary.income.base_cents);
+      bonusSavings.textContent = formatCurrency(summary.income.bonus_cents);
+      
+      const remainingCents = summary.totals.remaining_cents;
+      remaining.textContent = formatCurrency(remainingCents);
+      remaining.className = 'summary-value ' + (remainingCents >= 0 ? 'positive' : 'negative');
+    }
+
+    function renderBudgetHealth(budgetHealth) {
+      const container = document.getElementById('budgetHealthBody');
+      
+      if (!budgetHealth || budgetHealth.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <p>No budgets set for this month</p>
+            <a href="budgets.html" class="btn btn-primary">Set Budgets</a>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = budgetHealth.map(b => `
+        <div class="progress-container">
+          <div class="progress-header">
+            <span class="progress-category">
+              <span class="dot" style="background: ${b.category_color}"></span>
+              ${b.category_name}
+            </span>
+            <span class="progress-values">
+              ${formatCurrency(b.actual_cents)} / ${formatCurrency(b.budget_cents)}
+            </span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill ${b.status}" style="width: ${Math.min(b.percent, 100)}%"></div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderTopMerchants(merchants) {
+      const container = document.getElementById('merchantsBody');
+      
+      if (!merchants || merchants.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <p class="text-sm">No transactions this month</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="merchant-list">
+          ${merchants.map((m, i) => `
+            <div class="merchant-item">
+              <span class="merchant-name">
+                <span class="merchant-rank">${i + 1}</span>
+                ${m.merchant || 'Unknown'}
+              </span>
+              <span class="merchant-amount">${formatCurrency(m.total_cents)}</span>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function renderRainyDay(goal) {
+      const container = document.getElementById('rainyDayBody');
+      
+      if (!goal) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <p class="text-sm">No rainy day fund set up</p>
+            <a href="goals.html" class="btn btn-secondary">Create Goal</a>
+          </div>
+        `;
+        return;
+      }
+
+      const percent = goal.progress_percent || 0;
+      
+      container.innerHTML = `
+        <div class="goal-bar">
+          <div class="goal-header">
+            <span class="goal-name">
+              <span class="icon">☂️</span>
+              ${goal.name}
+            </span>
+            <span class="goal-progress-text">${percent.toFixed(1)}%</span>
+          </div>
+          <div class="goal-progress-bar">
+            <div class="goal-progress-fill" style="width: ${Math.min(percent, 100)}%"></div>
+          </div>
+          <div class="flex justify-between mt-md text-sm text-muted">
+            <span>${formatCurrency(goal.current_cents)}</span>
+            <span>Goal: ${formatCurrency(goal.target_cents)}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderTrendChart(dailyTotals, year, month) {
+      const canvas = document.getElementById('trendCanvas');
+      const ctx = canvas.getContext('2d');
+      
+      // Set canvas size
+      const container = canvas.parentElement;
+      canvas.width = container.clientWidth;
+      canvas.height = 200;
+      
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      if (!dailyTotals || dailyTotals.length === 0) {
+        ctx.fillStyle = '#6b7280';
+        ctx.font = '14px Inter';
+        ctx.textAlign = 'center';
+        ctx.fillText('No spending data for this month', canvas.width / 2, canvas.height / 2);
+        return;
+      }
+
+      // Get days in month
+      const daysInMonth = new Date(year, month, 0).getDate();
+      
+      // Create data array for all days
+      const data = [];
+      const totalsMap = {};
+      dailyTotals.forEach(d => {
+        totalsMap[d.date] = d.total_cents;
+      });
+      
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        data.push(totalsMap[dateStr] || 0);
+      }
+
+      // Find max value
+      const maxValue = Math.max(...data, 1);
+      
+      // Chart dimensions
+      const padding = { top: 20, right: 20, bottom: 30, left: 50 };
+      const chartWidth = canvas.width - padding.left - padding.right;
+      const chartHeight = canvas.height - padding.top - padding.bottom;
+      
+      // Draw grid lines
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const y = padding.top + (chartHeight / 4) * i;
+        ctx.beginPath();
+        ctx.moveTo(padding.left, y);
+        ctx.lineTo(canvas.width - padding.right, y);
+        ctx.stroke();
+      }
+
+      // Draw data line
+      ctx.beginPath();
+      ctx.strokeStyle = '#6366f1';
+      ctx.lineWidth = 2;
+      
+      const pointWidth = chartWidth / (data.length - 1 || 1);
+      
+      data.forEach((value, i) => {
+        const x = padding.left + i * pointWidth;
+        const y = padding.top + chartHeight - (value / maxValue) * chartHeight;
+        
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+      ctx.stroke();
+
+      // Fill area under line
+      ctx.lineTo(padding.left + (data.length - 1) * pointWidth, padding.top + chartHeight);
+      ctx.lineTo(padding.left, padding.top + chartHeight);
+      ctx.closePath();
+      
+      const gradient = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartHeight);
+      gradient.addColorStop(0, 'rgba(99, 102, 241, 0.3)');
+      gradient.addColorStop(1, 'rgba(99, 102, 241, 0)');
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      // Draw points
+      ctx.fillStyle = '#6366f1';
+      data.forEach((value, i) => {
+        if (value > 0) {
+          const x = padding.left + i * pointWidth;
+          const y = padding.top + chartHeight - (value / maxValue) * chartHeight;
+          ctx.beginPath();
+          ctx.arc(x, y, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+
+      // Draw Y-axis labels
+      ctx.fillStyle = '#9ca3af';
+      ctx.font = '10px JetBrains Mono';
+      ctx.textAlign = 'right';
+      for (let i = 0; i <= 4; i++) {
+        const value = maxValue - (maxValue / 4) * i;
+        const y = padding.top + (chartHeight / 4) * i + 4;
+        ctx.fillText(formatCurrency(value), padding.left - 8, y);
+      }
+
+      // Draw X-axis labels
+      ctx.textAlign = 'center';
+      const labelStep = Math.ceil(data.length / 6);
+      for (let i = 0; i < data.length; i += labelStep) {
+        const x = padding.left + i * pointWidth;
+        ctx.fillText(String(i + 1), x, canvas.height - 8);
+      }
+    }
+
+    function renderCategoryPills() {
+      const container = document.getElementById('categoryPills');
+      const lastUsed = getLastUsedCategory();
+      
+      container.innerHTML = categories.map(c => `
+        <button type="button" class="category-pill ${c.id == lastUsed ? 'selected' : ''}" 
+                data-category-id="${c.id}" 
+                style="border-color: ${c.id == lastUsed ? c.color : ''}; ${c.id == lastUsed ? `background: ${c.color}20` : ''}">
+          <span class="dot" style="background: ${c.color}; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px;"></span>
+          ${c.name}
+        </button>
+      `).join('');
+
+      // Set initial selected category
+      if (lastUsed) {
+        selectedCategory = parseInt(lastUsed);
+      } else if (categories.length > 0) {
+        selectedCategory = categories[0].id;
+        container.querySelector('.category-pill').classList.add('selected');
+      }
+
+      // Click handlers
+      container.addEventListener('click', (e) => {
+        const pill = e.target.closest('.category-pill');
+        if (!pill) return;
+        
+        container.querySelectorAll('.category-pill').forEach(p => {
+          p.classList.remove('selected');
+          p.style.borderColor = '';
+          p.style.background = '';
+        });
+        
+        pill.classList.add('selected');
+        selectedCategory = parseInt(pill.dataset.categoryId);
+        const cat = categories.find(c => c.id === selectedCategory);
+        if (cat) {
+          pill.style.borderColor = cat.color;
+          pill.style.background = cat.color + '20';
+        }
+      });
+    }
+
+    function openQuickAdd(prefillDate = null) {
+      const form = document.getElementById('quickAddForm');
+      form.reset();
+      
+      // Set date to today or prefilled
+      const dateInput = document.getElementById('date');
+      dateInput.value = prefillDate || new Date().toISOString().split('T')[0];
+      
+      // Reset category selection to last used
+      renderCategoryPills();
+      
+      openModal('quickAddModal');
+      document.getElementById('amount').focus();
+    }
+
+    async function saveExpense() {
+      const amountInput = document.getElementById('amount').value.replace(/[^0-9.]/g, '');
+      const amount = parseFloat(amountInput);
+      
+      if (!amount || amount <= 0) {
+        showToast('Please enter a valid amount', 'error');
+        return;
+      }
+
+      if (!selectedCategory) {
+        showToast('Please select a category', 'error');
+        return;
+      }
+
+      const data = {
+        amount_cents: dollarsToCents(amount),
+        merchant: document.getElementById('merchant').value || null,
+        category_id: selectedCategory,
+        date: document.getElementById('date').value,
+        note: document.getElementById('note').value || null,
+      };
+
+      try {
+        await api.createTransaction(data);
+        setLastUsedCategory(selectedCategory);
+        closeModal('quickAddModal');
+        showToast('Expense saved!', 'success');
+        loadDashboard();
+      } catch (err) {
+        console.error('Failed to save expense:', err);
+        showToast('Failed to save expense', 'error');
+      }
+    }
+
+    function applyTemplate(template) {
+      const templates = {
+        xfinity: { merchant: 'Xfinity', amount: 85, category: 'Xfinity (Internet)' },
+        fpl: { merchant: 'FPL', amount: null, category: 'FPL (Electric)' },
+        chewy: { merchant: 'Chewy', amount: 55, category: 'Chewy (Pet Supplies)' },
+        car: { merchant: 'Car Payment', amount: 195, category: 'Car Payment' },
+      };
+
+      const t = templates[template];
+      if (!t) return;
+
+      document.getElementById('merchant').value = t.merchant;
+      if (t.amount) {
+        document.getElementById('amount').value = '$' + t.amount.toFixed(2);
+      }
+
+      // Find and select the category
+      const cat = categories.find(c => c.name === t.category);
+      if (cat) {
+        selectedCategory = cat.id;
+        document.querySelectorAll('#categoryPills .category-pill').forEach(p => {
+          const isSelected = parseInt(p.dataset.categoryId) === cat.id;
+          p.classList.toggle('selected', isSelected);
+          if (isSelected) {
+            p.style.borderColor = cat.color;
+            p.style.background = cat.color + '20';
+          } else {
+            p.style.borderColor = '';
+            p.style.background = '';
+          }
+        });
+      }
+    }
+
+    function showMerchantSuggestions(merchants) {
+      const container = document.getElementById('merchantSuggestions');
+      if (!merchants || merchants.length === 0) {
+        container.classList.add('hidden');
+        return;
+      }
+      
+      container.innerHTML = merchants.map(m => `
+        <div class="suggestion-item" data-merchant="${m}">${m}</div>
+      `).join('');
+      container.classList.remove('hidden');
+      
+      // Handle click on suggestion
+      container.querySelectorAll('.suggestion-item').forEach(item => {
+        item.addEventListener('click', () => {
+          document.getElementById('merchant').value = item.dataset.merchant;
+          container.classList.add('hidden');
+        });
+      });
+    }
+
+    // Handle window resize for chart
+    window.addEventListener('resize', debounce(() => {
+      const { year, month } = getCurrentPeriod();
+      api.getMonthSummary(year, month).then(summary => {
+        renderTrendChart(summary.daily_totals, year, month);
+      });
+    }, 250));
+
+    // Expose openQuickAdd for external use
+    window.openQuickAdd = openQuickAdd;
+  </script>
+</body>
+</html>

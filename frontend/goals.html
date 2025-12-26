@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Goals - Finance Dashboard</title>
+    <meta name="description" content="Track your savings goals and rainy day fund">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="css/app.css">
+    <style>
+        .goals-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .goal-card {
+            background: var(--bg-surface);
+            border-radius: var(--radius-xl);
+            border: 1px solid var(--border-color);
+            padding: var(--spacing-lg);
+            margin-bottom: var(--spacing-md);
+            transition: all var(--transition-base);
+        }
+
+        .goal-card:hover {
+            border-color: var(--border-color-light);
+        }
+
+        .goal-card.rainy-day {
+            background: linear-gradient(135deg, var(--bg-surface) 0%, var(--info-light) 100%);
+            border-color: var(--info);
+        }
+
+        .goal-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .goal-icon {
+            font-size: 2rem;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .goal-name {
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .goal-actions {
+            display: flex;
+            gap: var(--spacing-xs);
+        }
+
+        .goal-action-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius-full);
+            border: none;
+            background: var(--bg-surface-2);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+            transition: all var(--transition-fast);
+        }
+
+        .goal-action-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .goal-progress {
+            margin-bottom: var(--spacing-md);
+        }
+
+        .goal-progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .goal-current {
+            font-family: var(--font-mono);
+            font-weight: 700;
+            font-size: 1.5rem;
+        }
+
+        .goal-target {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .goal-progress-bar {
+            height: 12px;
+            background: var(--bg-surface-3);
+            border-radius: var(--radius-full);
+            overflow: hidden;
+        }
+
+        .goal-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--info) 0%, var(--primary) 100%);
+            border-radius: var(--radius-full);
+            transition: width var(--transition-slow);
+        }
+
+        .goal-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-top: var(--spacing-sm);
+        }
+
+        .goal-quick-actions {
+            display: flex;
+            gap: var(--spacing-sm);
+            margin-top: var(--spacing-md);
+            padding-top: var(--spacing-md);
+            border-top: 1px solid var(--border-color);
+        }
+
+        .contribution-history {
+            margin-top: var(--spacing-lg);
+        }
+
+        .contribution-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-sm) 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .contribution-item:last-child {
+            border-bottom: none;
+        }
+
+        .contribution-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .contribution-type {
+            font-weight: 500;
+        }
+
+        .contribution-date {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .contribution-amount {
+            font-family: var(--font-mono);
+            font-weight: 600;
+        }
+
+        .contribution-amount.positive {
+            color: var(--success);
+        }
+
+        .contribution-amount.negative {
+            color: var(--danger);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page">
+        <!-- App Header -->
+        <header class="app-header container">
+            <div class="header-top">
+                <div class="app-logo">💰 Finance</div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="container">
+            <div class="goals-header">
+                <h1>Goals</h1>
+                <button class="btn btn-primary" id="newGoalBtn">+ New Goal</button>
+            </div>
+
+            <!-- Goals List -->
+            <div id="goalsList">
+                <div class="skeleton" style="height: 200px; border-radius: var(--radius-xl);"></div>
+            </div>
+        </main>
+
+        <!-- Floating Action Button -->
+        <button class="fab" id="fabAdd" aria-label="Add expense">+</button>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <div class="nav-items">
+                <a href="index.html" class="nav-item">
+                    <span class="icon">🏠</span>
+                    Home
+                </a>
+                <a href="calendar.html" class="nav-item">
+                    <span class="icon">📅</span>
+                    Calendar
+                </a>
+                <a href="transactions.html" class="nav-item">
+                    <span class="icon">💳</span>
+                    Transactions
+                </a>
+                <a href="budgets.html" class="nav-item">
+                    <span class="icon">📋</span>
+                    Budgets
+                </a>
+                <a href="goals.html" class="nav-item active">
+                    <span class="icon">🎯</span>
+                    Goals
+                </a>
+            </div>
+        </nav>
+    </div>
+
+    <!-- Contribute/Withdraw Modal -->
+    <div class="modal-overlay" id="contributeModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title" id="contributeModalTitle">Contribute</h3>
+                <button class="modal-close" aria-label="Close">✕</button>
+            </div>
+            <div class="modal-body">
+                <form id="contributeForm">
+                    <input type="hidden" id="contributeGoalId">
+                    <input type="hidden" id="contributeType" value="contribute">
+
+                    <div class="form-group">
+                        <label class="form-label" for="contributeAmount">Amount</label>
+                        <input type="text" id="contributeAmount" class="form-input large" placeholder="$0.00"
+                            inputmode="decimal" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="contributeNote">Note (optional)</label>
+                        <input type="text" id="contributeNote" class="form-input" placeholder="e.g. Bonus paycheck">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-block btn-lg" id="contributeSubmit">
+                        Add Contribution
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Goal Modal -->
+    <div class="modal-overlay" id="newGoalModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">New Goal</h3>
+                <button class="modal-close" aria-label="Close">✕</button>
+            </div>
+            <div class="modal-body">
+                <form id="newGoalForm">
+                    <div class="form-group">
+                        <label class="form-label" for="goalName">Goal Name</label>
+                        <input type="text" id="goalName" class="form-input" placeholder="e.g. Emergency Fund" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="goalTarget">Target Amount</label>
+                        <input type="text" id="goalTarget" class="form-input large" placeholder="$0.00"
+                            inputmode="decimal" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="goalCurrent">Starting Amount (optional)</label>
+                        <input type="text" id="goalCurrent" class="form-input" placeholder="$0.00" inputmode="decimal">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-block btn-lg">
+                        Create Goal
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { api, formatCurrency, dollarsToCents } from './js/api.js';
+        import { initApp, showToast, openModal, closeModal, initModals } from './js/app.js';
+
+        // State
+        let goals = [];
+
+        // Initialize
+        initApp();
+        initModals();
+        loadGoals();
+
+        // New goal button
+        document.getElementById('newGoalBtn').addEventListener('click', () => {
+            openModal('newGoalModal');
+        });
+
+        // FAB
+        document.getElementById('fabAdd').addEventListener('click', () => {
+            window.location.href = 'index.html?quickadd=true';
+        });
+
+        // New goal form
+        document.getElementById('newGoalForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await createGoal();
+        });
+
+        // Contribute form
+        document.getElementById('contributeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await submitContribution();
+        });
+
+        async function loadGoals() {
+            try {
+                const result = await api.getGoals();
+                goals = result.goals || [];
+                renderGoals();
+            } catch (err) {
+                console.error('Failed to load goals:', err);
+                showToast('Failed to load goals', 'error');
+            }
+        }
+
+        function renderGoals() {
+            const container = document.getElementById('goalsList');
+
+            if (goals.length === 0) {
+                container.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">🎯</div>
+            <p>No goals yet. Create your first savings goal!</p>
+            <button class="btn btn-primary" onclick="document.getElementById('newGoalBtn').click()">
+              Create Goal
+            </button>
+          </div>
+        `;
+                return;
+            }
+
+            container.innerHTML = goals.map(goal => {
+                const percent = goal.progress_percent || 0;
+                const icon = goal.is_rainy_day ? '☂️' : '🎯';
+
+                return `
+          <div class="goal-card ${goal.is_rainy_day ? 'rainy-day' : ''}" data-goal-id="${goal.id}">
+            <div class="goal-card-header">
+              <div>
+                <div class="goal-icon">${icon}</div>
+                <div class="goal-name">${goal.name}</div>
+              </div>
+              ${!goal.is_rainy_day ? `
+                <div class="goal-actions">
+                  <button class="goal-action-btn" data-action="edit" title="Edit">✏️</button>
+                  <button class="goal-action-btn" data-action="delete" title="Delete">🗑️</button>
+                </div>
+              ` : ''}
+            </div>
+            
+            <div class="goal-progress">
+              <div class="goal-progress-header">
+                <span class="goal-current">${formatCurrency(goal.current_cents)}</span>
+                <span class="goal-target">of ${formatCurrency(goal.target_cents)}</span>
+              </div>
+              <div class="goal-progress-bar">
+                <div class="goal-progress-fill" style="width: ${Math.min(percent, 100)}%"></div>
+              </div>
+              <div class="goal-stats">
+                <span>${percent.toFixed(1)}% complete</span>
+                <span>${formatCurrency(goal.remaining_cents)} to go</span>
+              </div>
+            </div>
+
+            <div class="goal-quick-actions">
+              <button class="btn btn-primary" style="flex: 1;" data-action="contribute">
+                + Contribute
+              </button>
+              ${goal.current_cents > 0 ? `
+                <button class="btn btn-secondary" style="flex: 1;" data-action="withdraw">
+                  − Withdraw
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        `;
+            }).join('');
+
+            // Add event listeners
+            container.querySelectorAll('[data-action]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const action = btn.dataset.action;
+                    const goalCard = btn.closest('.goal-card');
+                    const goalId = parseInt(goalCard.dataset.goalId);
+
+                    switch (action) {
+                        case 'contribute':
+                            openContributeModal(goalId, 'contribute');
+                            break;
+                        case 'withdraw':
+                            openContributeModal(goalId, 'withdraw');
+                            break;
+                        case 'edit':
+                            // TODO: Implement edit
+                            showToast('Edit coming soon', 'info');
+                            break;
+                        case 'delete':
+                            deleteGoal(goalId);
+                            break;
+                    }
+                });
+            });
+        }
+
+        function openContributeModal(goalId, type) {
+            const goal = goals.find(g => g.id === goalId);
+            if (!goal) return;
+
+            document.getElementById('contributeGoalId').value = goalId;
+            document.getElementById('contributeType').value = type;
+            document.getElementById('contributeAmount').value = '';
+            document.getElementById('contributeNote').value = '';
+
+            const title = document.getElementById('contributeModalTitle');
+            const submit = document.getElementById('contributeSubmit');
+
+            if (type === 'withdraw') {
+                title.textContent = `Withdraw from ${goal.name}`;
+                submit.textContent = 'Withdraw';
+                submit.className = 'btn btn-danger btn-block btn-lg';
+            } else {
+                title.textContent = `Contribute to ${goal.name}`;
+                submit.textContent = 'Add Contribution';
+                submit.className = 'btn btn-primary btn-block btn-lg';
+            }
+
+            openModal('contributeModal');
+        }
+
+        async function submitContribution() {
+            const goalId = document.getElementById('contributeGoalId').value;
+            const type = document.getElementById('contributeType').value;
+            const amountInput = document.getElementById('contributeAmount').value.replace(/[^0-9.]/g, '');
+            const amount = parseFloat(amountInput);
+            const note = document.getElementById('contributeNote').value;
+
+            if (!amount || amount <= 0) {
+                showToast('Please enter a valid amount', 'error');
+                return;
+            }
+
+            const data = {
+                amount_cents: dollarsToCents(amount),
+                note: note || null,
+                date: new Date().toISOString().split('T')[0],
+            };
+
+            try {
+                if (type === 'withdraw') {
+                    await api.withdrawFromGoal(goalId, data);
+                    showToast('Withdrawal successful', 'success');
+                } else {
+                    await api.contributeToGoal(goalId, data);
+                    showToast('Contribution added', 'success');
+                }
+
+                closeModal('contributeModal');
+                loadGoals();
+            } catch (err) {
+                console.error('Failed:', err);
+                showToast(err.message || 'Operation failed', 'error');
+            }
+        }
+
+        async function createGoal() {
+            const name = document.getElementById('goalName').value;
+            const targetInput = document.getElementById('goalTarget').value.replace(/[^0-9.]/g, '');
+            const currentInput = document.getElementById('goalCurrent').value.replace(/[^0-9.]/g, '');
+
+            const target = parseFloat(targetInput);
+            const current = parseFloat(currentInput) || 0;
+
+            if (!name || !target) {
+                showToast('Please fill in required fields', 'error');
+                return;
+            }
+
+            try {
+                await api.createGoal({
+                    name,
+                    target_cents: dollarsToCents(target),
+                    current_cents: dollarsToCents(current),
+                });
+
+                closeModal('newGoalModal');
+                showToast('Goal created!', 'success');
+                document.getElementById('newGoalForm').reset();
+                loadGoals();
+            } catch (err) {
+                console.error('Failed to create goal:', err);
+                showToast('Failed to create goal', 'error');
+            }
+        }
+
+        async function deleteGoal(goalId) {
+            const goal = goals.find(g => g.id === goalId);
+            if (!goal) return;
+
+            if (!confirm(`Are you sure you want to delete "${goal.name}"?`)) {
+                return;
+            }
+
+            try {
+                await api.deleteGoal(goalId);
+                showToast('Goal deleted', 'success');
+                loadGoals();
+            } catch (err) {
+                console.error('Failed to delete goal:', err);
+                showToast('Failed to delete goal', 'error');
+            }
+        }
+    </script>
+</body>
+
+</html>

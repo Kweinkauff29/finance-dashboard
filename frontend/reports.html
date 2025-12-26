@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reports - Finance Dashboard</title>
+    <meta name="description" content="Yearly reports and spending analysis">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="css/app.css">
+    <style>
+        .year-selector {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            background: var(--bg-surface);
+            border-radius: var(--radius-full);
+            padding: var(--spacing-xs) var(--spacing-sm);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .year-selector button {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: var(--radius-full);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all var(--transition-fast);
+        }
+
+        .year-selector button:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .year-selector .current-year {
+            font-weight: 600;
+            min-width: 80px;
+            text-align: center;
+        }
+
+        .report-card {
+            background: var(--bg-surface);
+            border-radius: var(--radius-xl);
+            border: 1px solid var(--border-color);
+            margin-bottom: var(--spacing-lg);
+            overflow: hidden;
+        }
+
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-md) var(--spacing-lg);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .report-title {
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .report-body {
+            padding: var(--spacing-lg);
+        }
+
+        .chart-container {
+            height: 300px;
+            position: relative;
+        }
+
+        .monthly-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--spacing-sm);
+        }
+
+        @media (max-width: 640px) {
+            .monthly-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .monthly-card {
+            background: var(--bg-surface-2);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-md);
+            text-align: center;
+        }
+
+        .monthly-name {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .monthly-value {
+            font-family: var(--font-mono);
+            font-weight: 600;
+        }
+
+        .monthly-variance {
+            font-size: 0.75rem;
+            margin-top: var(--spacing-xs);
+        }
+
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-md);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .leaderboard-item:last-child {
+            border-bottom: none;
+        }
+
+        .leaderboard-rank {
+            width: 28px;
+            height: 28px;
+            background: var(--danger-light);
+            color: var(--danger);
+            border-radius: var(--radius-full);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.875rem;
+            margin-right: var(--spacing-md);
+        }
+
+        .leaderboard-category {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .leaderboard-overage {
+            font-family: var(--font-mono);
+            font-weight: 600;
+            color: var(--danger);
+        }
+
+        .export-section {
+            display: flex;
+            gap: var(--spacing-md);
+            flex-wrap: wrap;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page">
+        <!-- App Header -->
+        <header class="app-header container">
+            <div class="header-top">
+                <div class="app-logo">💰 Finance</div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="container">
+            <h1 class="mb-md">Year View</h1>
+
+            <!-- Year Selector -->
+            <div class="year-selector">
+                <button id="prevYear" aria-label="Previous year">←</button>
+                <span class="current-year" id="currentYear">2026</span>
+                <button id="nextYear" aria-label="Next year">→</button>
+            </div>
+
+            <!-- Monthly Overview -->
+            <div class="report-card">
+                <div class="report-header">
+                    <h2 class="report-title">
+                        <span class="icon">📊</span>
+                        Monthly Spending
+                    </h2>
+                </div>
+                <div class="report-body">
+                    <div class="monthly-grid" id="monthlyGrid">
+                        <div class="skeleton" style="height: 80px;"></div>
+                        <div class="skeleton" style="height: 80px;"></div>
+                        <div class="skeleton" style="height: 80px;"></div>
+                        <div class="skeleton" style="height: 80px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Budget vs Actual Chart -->
+            <div class="report-card">
+                <div class="report-header">
+                    <h2 class="report-title">
+                        <span class="icon">📈</span>
+                        Budget vs Actual
+                    </h2>
+                </div>
+                <div class="report-body">
+                    <div class="chart-container">
+                        <canvas id="budgetChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Over Budget Leaderboard -->
+            <div class="report-card">
+                <div class="report-header">
+                    <h2 class="report-title">
+                        <span class="icon">🏆</span>
+                        Most Over Budget
+                    </h2>
+                </div>
+                <div class="report-body no-padding" id="leaderboard">
+                    <div class="skeleton" style="height: 150px;"></div>
+                </div>
+            </div>
+
+            <!-- Export -->
+            <div class="report-card">
+                <div class="report-header">
+                    <h2 class="report-title">
+                        <span class="icon">📥</span>
+                        Export Data
+                    </h2>
+                </div>
+                <div class="report-body">
+                    <p class="text-sm text-muted mb-md">Download your transaction data as a CSV file.</p>
+                    <div class="export-section">
+                        <button class="btn btn-secondary" id="exportYear">
+                            Export Year
+                        </button>
+                        <select class="form-select" id="exportMonth" style="width: auto;">
+                            <option value="">Select Month...</option>
+                            <option value="1">January</option>
+                            <option value="2">February</option>
+                            <option value="3">March</option>
+                            <option value="4">April</option>
+                            <option value="5">May</option>
+                            <option value="6">June</option>
+                            <option value="7">July</option>
+                            <option value="8">August</option>
+                            <option value="9">September</option>
+                            <option value="10">October</option>
+                            <option value="11">November</option>
+                            <option value="12">December</option>
+                        </select>
+                        <button class="btn btn-primary" id="exportMonthBtn">
+                            Export Month
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <div class="nav-items">
+                <a href="index.html" class="nav-item">
+                    <span class="icon">🏠</span>
+                    Home
+                </a>
+                <a href="calendar.html" class="nav-item">
+                    <span class="icon">📅</span>
+                    Calendar
+                </a>
+                <a href="transactions.html" class="nav-item">
+                    <span class="icon">💳</span>
+                    Transactions
+                </a>
+                <a href="budgets.html" class="nav-item">
+                    <span class="icon">📋</span>
+                    Budgets
+                </a>
+                <a href="goals.html" class="nav-item">
+                    <span class="icon">🎯</span>
+                    Goals
+                </a>
+            </div>
+        </nav>
+    </div>
+
+    <script type="module">
+        import { api, formatCurrency, getMonthName } from './js/api.js';
+        import { initApp, showToast } from './js/app.js';
+
+        // State
+        let currentYear = new Date().getFullYear();
+        let reportData = null;
+
+        // Initialize
+        initApp();
+        updateYearDisplay();
+        loadReport();
+
+        // Year navigation
+        document.getElementById('prevYear').addEventListener('click', () => {
+            currentYear--;
+            updateYearDisplay();
+            loadReport();
+        });
+
+        document.getElementById('nextYear').addEventListener('click', () => {
+            currentYear++;
+            updateYearDisplay();
+            loadReport();
+        });
+
+        // Export handlers
+        document.getElementById('exportYear').addEventListener('click', () => {
+            exportCsv(currentYear);
+        });
+
+        document.getElementById('exportMonthBtn').addEventListener('click', () => {
+            const month = document.getElementById('exportMonth').value;
+            if (!month) {
+                showToast('Please select a month', 'error');
+                return;
+            }
+            exportCsv(currentYear, month);
+        });
+
+        function updateYearDisplay() {
+            document.getElementById('currentYear').textContent = currentYear;
+        }
+
+        async function loadReport() {
+            try {
+                reportData = await api.getYearlyReport(currentYear);
+                renderMonthlyGrid();
+                renderBudgetChart();
+                renderLeaderboard();
+            } catch (err) {
+                console.error('Failed to load report:', err);
+                showToast('Failed to load report', 'error');
+            }
+        }
+
+        function renderMonthlyGrid() {
+            const container = document.getElementById('monthlyGrid');
+            const bva = reportData.budget_vs_actual || [];
+
+            // Create map for quick lookup
+            const monthData = {};
+            bva.forEach(m => {
+                monthData[m.month] = m;
+            });
+
+            const months = [];
+            for (let m = 1; m <= 12; m++) {
+                months.push({
+                    month: m,
+                    name: getMonthName(m),
+                    ...monthData[m]
+                });
+            }
+
+            container.innerHTML = months.map(m => {
+                const hasData = m.actual_cents !== undefined;
+                const variance = hasData ? m.variance_cents : null;
+
+                return `
+          <div class="monthly-card">
+            <div class="monthly-name">${m.name.substring(0, 3)}</div>
+            <div class="monthly-value">${hasData ? formatCurrency(m.actual_cents) : '—'}</div>
+            ${variance !== null ? `
+              <div class="monthly-variance ${variance >= 0 ? 'text-success' : 'text-danger'}">
+                ${formatCurrency(variance, true)}
+              </div>
+            ` : ''}
+          </div>
+        `;
+            }).join('');
+        }
+
+        function renderBudgetChart() {
+            const canvas = document.getElementById('budgetChart');
+            const ctx = canvas.getContext('2d');
+            const container = canvas.parentElement;
+
+            canvas.width = container.clientWidth;
+            canvas.height = 300;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const bva = reportData.budget_vs_actual || [];
+            if (bva.length === 0) {
+                ctx.fillStyle = '#6b7280';
+                ctx.font = '14px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText('No data for this year', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+
+            // Prepare data
+            const budgets = [];
+            const actuals = [];
+            const labels = [];
+
+            for (let m = 1; m <= 12; m++) {
+                const data = bva.find(b => b.month === m);
+                labels.push(getMonthName(m).substring(0, 3));
+                budgets.push(data?.budget_cents || 0);
+                actuals.push(data?.actual_cents || 0);
+            }
+
+            // Chart dimensions
+            const padding = { top: 30, right: 20, bottom: 40, left: 60 };
+            const chartWidth = canvas.width - padding.left - padding.right;
+            const chartHeight = canvas.height - padding.top - padding.bottom;
+            const barWidth = chartWidth / 12 / 3;
+            const groupWidth = chartWidth / 12;
+
+            // Find max value
+            const maxValue = Math.max(...budgets, ...actuals, 1);
+
+            // Draw grid
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 4; i++) {
+                const y = padding.top + (chartHeight / 4) * i;
+                ctx.beginPath();
+                ctx.moveTo(padding.left, y);
+                ctx.lineTo(canvas.width - padding.right, y);
+                ctx.stroke();
+
+                // Y-axis labels
+                const value = maxValue - (maxValue / 4) * i;
+                ctx.fillStyle = '#9ca3af';
+                ctx.font = '10px JetBrains Mono';
+                ctx.textAlign = 'right';
+                ctx.fillText(formatCurrency(value), padding.left - 8, y + 4);
+            }
+
+            // Draw bars
+            for (let i = 0; i < 12; i++) {
+                const x = padding.left + i * groupWidth + groupWidth / 2;
+
+                // Budget bar
+                const budgetHeight = (budgets[i] / maxValue) * chartHeight;
+                ctx.fillStyle = '#6366f1';
+                ctx.fillRect(x - barWidth - 2, padding.top + chartHeight - budgetHeight, barWidth, budgetHeight);
+
+                // Actual bar
+                const actualHeight = (actuals[i] / maxValue) * chartHeight;
+                ctx.fillStyle = actuals[i] > budgets[i] ? '#ef4444' : '#22c55e';
+                ctx.fillRect(x + 2, padding.top + chartHeight - actualHeight, barWidth, actualHeight);
+
+                // X-axis labels
+                ctx.fillStyle = '#9ca3af';
+                ctx.font = '10px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText(labels[i], x, canvas.height - 15);
+            }
+
+            // Legend
+            ctx.fillStyle = '#6366f1';
+            ctx.fillRect(canvas.width - 120, 10, 12, 12);
+            ctx.fillStyle = '#f9fafb';
+            ctx.font = '11px Inter';
+            ctx.textAlign = 'left';
+            ctx.fillText('Budget', canvas.width - 100, 20);
+
+            ctx.fillStyle = '#22c55e';
+            ctx.fillRect(canvas.width - 120, 28, 12, 12);
+            ctx.fillStyle = '#f9fafb';
+            ctx.fillText('Actual', canvas.width - 100, 38);
+        }
+
+        function renderLeaderboard() {
+            const container = document.getElementById('leaderboard');
+            const leaders = reportData.over_budget_leaders || [];
+
+            if (leaders.length === 0) {
+                container.innerHTML = `
+          <div class="empty-state" style="padding: var(--spacing-lg);">
+            <div class="icon">✨</div>
+            <p>No categories over budget this year!</p>
+          </div>
+        `;
+                return;
+            }
+
+            container.innerHTML = leaders.map((item, i) => `
+        <div class="leaderboard-item">
+          <div class="leaderboard-category">
+            <span class="leaderboard-rank">${i + 1}</span>
+            <span class="category-color" style="background: ${item.category_color}; width: 12px; height: 12px; border-radius: 50%;"></span>
+            <span>${item.category_name}</span>
+          </div>
+          <span class="leaderboard-overage">+${formatCurrency(item.overage_cents)}</span>
+        </div>
+      `).join('');
+        }
+
+        async function exportCsv(year, month) {
+            try {
+                const blob = await api.exportCsv(year, month);
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `transactions-${year}${month ? `-${month}` : ''}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast('Export downloaded!', 'success');
+            } catch (err) {
+                console.error('Failed to export:', err);
+                showToast('Failed to export data', 'error');
+            }
+        }
+
+        // Handle resize
+        window.addEventListener('resize', () => {
+            if (reportData) {
+                renderBudgetChart();
+            }
+        });
+    </script>
+</body>
+
+</html>

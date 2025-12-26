@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transactions - Finance Dashboard</title>
+    <meta name="description" content="View and manage all your transactions">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="css/app.css">
+    <style>
+        .search-bar {
+            display: flex;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .search-input {
+            flex: 1;
+            position: relative;
+        }
+
+        .search-input input {
+            width: 100%;
+            padding: var(--spacing-sm) var(--spacing-md);
+            padding-left: 40px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-full);
+            color: var(--text-primary);
+            font-size: 0.875rem;
+        }
+
+        .search-input input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .search-input .icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+
+        .filter-toggle {
+            padding: var(--spacing-sm) var(--spacing-md);
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-full);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .filter-toggle:hover {
+            border-color: var(--border-color-light);
+        }
+
+        .filter-toggle.active {
+            background: var(--primary-light);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .filters-panel {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+            display: none;
+        }
+
+        .filters-panel.active {
+            display: block;
+        }
+
+        .filter-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .filter-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .transactions-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .transaction-count {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .transactions-card {
+            background: var(--bg-surface);
+            border-radius: var(--radius-xl);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        .date-group {
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .date-group:last-child {
+            border-bottom: none;
+        }
+
+        .date-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-sm) var(--spacing-md);
+            background: var(--bg-surface-2);
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .date-total {
+            font-family: var(--font-mono);
+        }
+
+        .swipe-container {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .swipe-actions {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            display: flex;
+            align-items: stretch;
+        }
+
+        .swipe-actions.left {
+            left: 0;
+            transform: translateX(-100%);
+        }
+
+        .swipe-actions.right {
+            right: 0;
+            transform: translateX(100%);
+        }
+
+        .swipe-action {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 var(--spacing-lg);
+            font-size: 0.75rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .swipe-action.edit {
+            background: var(--primary);
+            color: white;
+        }
+
+        .swipe-action.delete {
+            background: var(--danger);
+            color: white;
+        }
+
+        .swipe-action.duplicate {
+            background: var(--info);
+            color: white;
+        }
+
+        .load-more {
+            padding: var(--spacing-lg);
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page">
+        <!-- App Header -->
+        <header class="app-header container">
+            <div class="header-top">
+                <div class="app-logo">💰 Finance</div>
+                <div class="month-selector">
+                    <button data-action="prev" aria-label="Previous month">←</button>
+                    <span class="current-month">January 2026</span>
+                    <button data-action="next" aria-label="Next month">→</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="container">
+            <!-- Search Bar -->
+            <div class="search-bar">
+                <div class="search-input">
+                    <span class="icon">🔍</span>
+                    <input type="text" id="searchInput" placeholder="Search merchants or notes...">
+                </div>
+                <button class="filter-toggle" id="filterToggle">
+                    Filters
+                </button>
+            </div>
+
+            <!-- Filters Panel -->
+            <div class="filters-panel" id="filtersPanel">
+                <div class="filter-row">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Category</label>
+                        <select class="form-select" id="filterCategory">
+                            <option value="">All Categories</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Amount Range</label>
+                        <select class="form-select" id="filterAmount">
+                            <option value="">Any Amount</option>
+                            <option value="0-2500">Under $25</option>
+                            <option value="2500-5000">$25 - $50</option>
+                            <option value="5000-10000">$50 - $100</option>
+                            <option value="10000-25000">$100 - $250</option>
+                            <option value="25000-">Over $250</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex gap-sm">
+                    <button class="btn btn-secondary" id="clearFilters">Clear Filters</button>
+                    <button class="btn btn-primary" id="applyFilters">Apply</button>
+                </div>
+            </div>
+
+            <!-- Transactions Header -->
+            <div class="transactions-header">
+                <h2>Transactions</h2>
+                <span class="transaction-count" id="transactionCount">0 transactions</span>
+            </div>
+
+            <!-- Transactions List -->
+            <div class="transactions-card" id="transactionsContainer">
+                <div class="skeleton" style="height: 300px;"></div>
+            </div>
+
+            <div class="load-more hidden" id="loadMore">
+                <button class="btn btn-secondary">Load More</button>
+            </div>
+        </main>
+
+        <!-- Floating Action Button -->
+        <button class="fab" id="fabAdd" aria-label="Add expense">+</button>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <div class="nav-items">
+                <a href="index.html" class="nav-item">
+                    <span class="icon">🏠</span>
+                    Home
+                </a>
+                <a href="calendar.html" class="nav-item">
+                    <span class="icon">📅</span>
+                    Calendar
+                </a>
+                <a href="transactions.html" class="nav-item active">
+                    <span class="icon">💳</span>
+                    Transactions
+                </a>
+                <a href="budgets.html" class="nav-item">
+                    <span class="icon">📋</span>
+                    Budgets
+                </a>
+                <a href="goals.html" class="nav-item">
+                    <span class="icon">🎯</span>
+                    Goals
+                </a>
+            </div>
+        </nav>
+    </div>
+
+    <!-- Edit Modal -->
+    <div class="modal-overlay" id="editModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Edit Transaction</h3>
+                <button class="modal-close" aria-label="Close">✕</button>
+            </div>
+            <div class="modal-body">
+                <form id="editForm">
+                    <input type="hidden" id="editId">
+
+                    <div class="form-group">
+                        <label class="form-label" for="editAmount">Amount</label>
+                        <input type="text" id="editAmount" class="form-input large" placeholder="$0.00"
+                            inputmode="decimal" required>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="editMerchant">Merchant</label>
+                            <input type="text" id="editMerchant" class="form-input" placeholder="e.g. ALDI">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="editDate">Date</label>
+                            <input type="date" id="editDate" class="form-input" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="editCategory">Category</label>
+                        <select class="form-select" id="editCategory" required></select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="editNote">Note</label>
+                        <input type="text" id="editNote" class="form-input" placeholder="Add a note...">
+                    </div>
+
+                    <div class="flex gap-sm">
+                        <button type="button" class="btn btn-danger" id="deleteBtn" style="flex: 1;">Delete</button>
+                        <button type="submit" class="btn btn-primary" style="flex: 2;">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { api, formatCurrency, dollarsToCents, formatDate } from './js/api.js';
+        import { initApp, getCurrentPeriod, showToast, openModal, closeModal, setCategoryColors, getCategoryColor, debounce, initModals } from './js/app.js';
+
+        // State
+        let categories = [];
+        let transactions = [];
+        let offset = 0;
+        const limit = 50;
+        let filters = {
+            search: '',
+            category_id: '',
+            min_amount: '',
+            max_amount: '',
+        };
+
+        // Initialize
+        initApp();
+        initModals();
+        loadData();
+
+        // Listen for month changes
+        window.addEventListener('periodchange', () => {
+            offset = 0;
+            loadTransactions();
+        });
+
+        // Search input
+        document.getElementById('searchInput').addEventListener('input', debounce((e) => {
+            filters.search = e.target.value;
+            offset = 0;
+            loadTransactions();
+        }, 300));
+
+        // Filter toggle
+        document.getElementById('filterToggle').addEventListener('click', () => {
+            const panel = document.getElementById('filtersPanel');
+            const toggle = document.getElementById('filterToggle');
+            panel.classList.toggle('active');
+            toggle.classList.toggle('active');
+        });
+
+        // Apply filters
+        document.getElementById('applyFilters').addEventListener('click', () => {
+            const amountRange = document.getElementById('filterAmount').value;
+            if (amountRange) {
+                const [min, max] = amountRange.split('-');
+                filters.min_amount = min || '';
+                filters.max_amount = max || '';
+            } else {
+                filters.min_amount = '';
+                filters.max_amount = '';
+            }
+            filters.category_id = document.getElementById('filterCategory').value;
+            offset = 0;
+            loadTransactions();
+            document.getElementById('filtersPanel').classList.remove('active');
+        });
+
+        // Clear filters
+        document.getElementById('clearFilters').addEventListener('click', () => {
+            filters = { search: '', category_id: '', min_amount: '', max_amount: '' };
+            document.getElementById('filterCategory').value = '';
+            document.getElementById('filterAmount').value = '';
+            document.getElementById('searchInput').value = '';
+            offset = 0;
+            loadTransactions();
+        });
+
+        // FAB
+        document.getElementById('fabAdd').addEventListener('click', () => {
+            window.location.href = 'index.html?quickadd=true';
+        });
+
+        // Load more
+        document.getElementById('loadMore').addEventListener('click', () => {
+            offset += limit;
+            loadTransactions(true);
+        });
+
+        // Edit form
+        document.getElementById('editForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await saveEdit();
+        });
+
+        // Delete button
+        document.getElementById('deleteBtn').addEventListener('click', async () => {
+            const id = document.getElementById('editId').value;
+            if (confirm('Are you sure you want to delete this transaction?')) {
+                try {
+                    await api.deleteTransaction(id);
+                    closeModal('editModal');
+                    showToast('Transaction deleted', 'success');
+                    offset = 0;
+                    loadTransactions();
+                } catch (err) {
+                    showToast('Failed to delete transaction', 'error');
+                }
+            }
+        });
+
+        async function loadData() {
+            try {
+                const catResult = await api.getCategories();
+                categories = catResult.categories;
+                setCategoryColors(categories);
+                populateCategorySelects();
+                await loadTransactions();
+            } catch (err) {
+                console.error('Failed to load data:', err);
+                showToast('Failed to load data', 'error');
+            }
+        }
+
+        function populateCategorySelects() {
+            const filterSelect = document.getElementById('filterCategory');
+            const editSelect = document.getElementById('editCategory');
+
+            const options = categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+
+            filterSelect.innerHTML = `<option value="">All Categories</option>${options}`;
+            editSelect.innerHTML = options;
+        }
+
+        async function loadTransactions(append = false) {
+            const { year, month } = getCurrentPeriod();
+            const { start, end } = getMonthRange(year, month);
+
+            const params = {
+                start_date: start,
+                end_date: end,
+                limit,
+                offset,
+            };
+
+            if (filters.search) params.search = filters.search;
+            if (filters.category_id) params.category_id = filters.category_id;
+            if (filters.min_amount) params.min_amount = filters.min_amount;
+            if (filters.max_amount) params.max_amount = filters.max_amount;
+
+            try {
+                const result = await api.getTransactions(params);
+
+                if (append) {
+                    transactions = [...transactions, ...result.transactions];
+                } else {
+                    transactions = result.transactions;
+                }
+
+                renderTransactions();
+
+                // Show/hide load more
+                const loadMore = document.getElementById('loadMore');
+                if (result.transactions.length === limit) {
+                    loadMore.classList.remove('hidden');
+                } else {
+                    loadMore.classList.add('hidden');
+                }
+
+            } catch (err) {
+                console.error('Failed to load transactions:', err);
+                showToast('Failed to load transactions', 'error');
+            }
+        }
+
+        function getMonthRange(year, month) {
+            const start = `${year}-${String(month).padStart(2, '0')}-01`;
+            const lastDay = new Date(year, month, 0).getDate();
+            const end = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+            return { start, end };
+        }
+
+        function renderTransactions() {
+            const container = document.getElementById('transactionsContainer');
+            document.getElementById('transactionCount').textContent = `${transactions.length} transaction${transactions.length !== 1 ? 's' : ''}`;
+
+            if (transactions.length === 0) {
+                container.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">📭</div>
+            <p>No transactions found</p>
+          </div>
+        `;
+                return;
+            }
+
+            // Group by date
+            const groups = {};
+            transactions.forEach(tx => {
+                if (!groups[tx.date]) {
+                    groups[tx.date] = [];
+                }
+                groups[tx.date].push(tx);
+            });
+
+            // Sort dates descending
+            const sortedDates = Object.keys(groups).sort((a, b) => b.localeCompare(a));
+
+            container.innerHTML = sortedDates.map(date => {
+                const dayTxs = groups[date];
+                const dayTotal = dayTxs.reduce((sum, tx) => sum + tx.amount_cents, 0);
+                const dateObj = new Date(date + 'T00:00:00');
+                const formattedDate = dateObj.toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric'
+                });
+
+                return `
+          <div class="date-group">
+            <div class="date-header">
+              <span>${formattedDate}</span>
+              <span class="date-total">${formatCurrency(dayTotal)}</span>
+            </div>
+            ${dayTxs.map(tx => `
+              <div class="transaction-item" data-id="${tx.id}">
+                <div class="transaction-left">
+                  <div class="transaction-category-dot" style="background: ${tx.category_color}"></div>
+                  <div class="transaction-details">
+                    <div class="transaction-merchant">${tx.merchant || tx.category_name}</div>
+                    <div class="transaction-meta">
+                      <span>${tx.category_name}</span>
+                      ${tx.note ? `<span>• ${tx.note}</span>` : ''}
+                    </div>
+                  </div>
+                </div>
+                <div class="transaction-amount">${formatCurrency(tx.amount_cents)}</div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+            }).join('');
+
+            // Add click handlers
+            container.querySelectorAll('.transaction-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    openEditModal(parseInt(item.dataset.id));
+                });
+            });
+        }
+
+        async function openEditModal(id) {
+            const tx = transactions.find(t => t.id === id);
+            if (!tx) return;
+
+            document.getElementById('editId').value = tx.id;
+            document.getElementById('editAmount').value = '$' + (tx.amount_cents / 100).toFixed(2);
+            document.getElementById('editMerchant').value = tx.merchant || '';
+            document.getElementById('editDate').value = tx.date;
+            document.getElementById('editCategory').value = tx.category_id;
+            document.getElementById('editNote').value = tx.note || '';
+
+            openModal('editModal');
+        }
+
+        async function saveEdit() {
+            const id = document.getElementById('editId').value;
+            const amountInput = document.getElementById('editAmount').value.replace(/[^0-9.]/g, '');
+            const amount = parseFloat(amountInput);
+
+            if (!amount || amount <= 0) {
+                showToast('Please enter a valid amount', 'error');
+                return;
+            }
+
+            const data = {
+                amount_cents: dollarsToCents(amount),
+                merchant: document.getElementById('editMerchant').value || null,
+                category_id: parseInt(document.getElementById('editCategory').value),
+                date: document.getElementById('editDate').value,
+                note: document.getElementById('editNote').value || null,
+            };
+
+            try {
+                await api.updateTransaction(id, data);
+                closeModal('editModal');
+                showToast('Transaction updated', 'success');
+                offset = 0;
+                loadTransactions();
+            } catch (err) {
+                console.error('Failed to update transaction:', err);
+                showToast('Failed to update transaction', 'error');
+            }
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Budgets - Finance Dashboard</title>
+    <meta name="description" content="Manage your monthly budgets by category">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="css/app.css">
+    <style>
+        .budget-actions {
+            display: flex;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-lg);
+            flex-wrap: wrap;
+        }
+
+        .budget-card {
+            background: var(--bg-surface);
+            border-radius: var(--radius-xl);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        .budget-summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-md);
+            padding: var(--spacing-lg);
+            background: linear-gradient(135deg, var(--bg-surface-2) 0%, var(--primary-light) 100%);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .budget-summary-item {
+            text-align: center;
+        }
+
+        .budget-summary-value {
+            font-family: var(--font-mono);
+            font-weight: 700;
+            font-size: 1.25rem;
+        }
+
+        .budget-summary-label {
+            font-size: 0.625rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .budget-table-container {
+            overflow-x: auto;
+        }
+
+        .budget-row.total {
+            background: var(--bg-surface-2);
+            font-weight: 600;
+        }
+
+        .budget-row .category-color {
+            width: 12px;
+            height: 12px;
+            border-radius: var(--radius-full);
+            flex-shrink: 0;
+        }
+
+        .rebalance-card {
+            background: var(--bg-surface);
+            border-radius: var(--radius-xl);
+            border: 1px solid var(--border-color);
+            margin-top: var(--spacing-lg);
+        }
+
+        .rebalance-header {
+            padding: var(--spacing-md) var(--spacing-lg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .rebalance-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-md) var(--spacing-lg);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .rebalance-item:last-child {
+            border-bottom: none;
+        }
+
+        .rebalance-category {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .rebalance-stats {
+            text-align: right;
+        }
+
+        .rebalance-times {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .rebalance-suggestion {
+            font-family: var(--font-mono);
+            font-weight: 600;
+            color: var(--warning);
+        }
+
+        .save-indicator {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--success);
+            color: white;
+            padding: var(--spacing-sm) var(--spacing-lg);
+            border-radius: var(--radius-full);
+            font-weight: 500;
+            box-shadow: var(--shadow-lg);
+            opacity: 0;
+            transition: opacity var(--transition-base);
+            z-index: var(--z-toast);
+        }
+
+        .save-indicator.visible {
+            opacity: 1;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page">
+        <!-- App Header -->
+        <header class="app-header container">
+            <div class="header-top">
+                <div class="app-logo">💰 Finance</div>
+                <div class="month-selector">
+                    <button data-action="prev" aria-label="Previous month">←</button>
+                    <span class="current-month">January 2026</span>
+                    <button data-action="next" aria-label="Next month">→</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="container">
+            <h1 class="mb-lg">Budgets</h1>
+
+            <!-- Actions -->
+            <div class="budget-actions">
+                <button class="btn btn-secondary" id="copyLastMonth">
+                    📋 Copy Last Month
+                </button>
+                <button class="btn btn-secondary" id="showRebalance">
+                    ⚖️ Rebalance Tool
+                </button>
+            </div>
+
+            <!-- Budget Table -->
+            <div class="budget-card">
+                <div class="budget-summary" id="budgetSummary">
+                    <div class="budget-summary-item">
+                        <div class="budget-summary-value" id="totalBudget">$0</div>
+                        <div class="budget-summary-label">Total Budget</div>
+                    </div>
+                    <div class="budget-summary-item">
+                        <div class="budget-summary-value" id="totalActual">$0</div>
+                        <div class="budget-summary-label">Total Spent</div>
+                    </div>
+                    <div class="budget-summary-item">
+                        <div class="budget-summary-value positive" id="totalVariance">$0</div>
+                        <div class="budget-summary-label">Remaining</div>
+                    </div>
+                </div>
+
+                <div class="budget-table-container">
+                    <div class="budget-table" id="budgetTable">
+                        <div class="budget-row header">
+                            <span>Category</span>
+                            <span style="text-align: right;">Budget</span>
+                            <span style="text-align: right;">Actual</span>
+                            <span style="text-align: right;">Variance</span>
+                        </div>
+                        <div class="skeleton" style="height: 200px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rebalance Tool -->
+            <div class="rebalance-card hidden" id="rebalanceCard">
+                <div class="rebalance-header">
+                    <h3>Rebalance Suggestions</h3>
+                    <button class="modal-close" id="closeRebalance">✕</button>
+                </div>
+                <div id="rebalanceBody">
+                    <div class="skeleton" style="height: 150px;"></div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Save Indicator -->
+        <div class="save-indicator" id="saveIndicator">✓ Changes saved</div>
+
+        <!-- Floating Action Button -->
+        <button class="fab" id="fabAdd" aria-label="Add expense">+</button>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <div class="nav-items">
+                <a href="index.html" class="nav-item">
+                    <span class="icon">🏠</span>
+                    Home
+                </a>
+                <a href="calendar.html" class="nav-item">
+                    <span class="icon">📅</span>
+                    Calendar
+                </a>
+                <a href="transactions.html" class="nav-item">
+                    <span class="icon">💳</span>
+                    Transactions
+                </a>
+                <a href="budgets.html" class="nav-item active">
+                    <span class="icon">📋</span>
+                    Budgets
+                </a>
+                <a href="goals.html" class="nav-item">
+                    <span class="icon">🎯</span>
+                    Goals
+                </a>
+            </div>
+        </nav>
+    </div>
+
+    <script type="module">
+        import { api, formatCurrency, dollarsToCents, getMonthName } from './js/api.js';
+        import { initApp, getCurrentPeriod, showToast, debounce } from './js/app.js';
+
+        // State
+        let budgets = [];
+        let categories = [];
+        let actuals = {};
+        let pendingChanges = {};
+
+        // Initialize
+        initApp();
+        loadBudgets();
+
+        // Listen for month changes
+        window.addEventListener('periodchange', loadBudgets);
+
+        // Copy last month
+        document.getElementById('copyLastMonth').addEventListener('click', async () => {
+            const { year, month } = getCurrentPeriod();
+            try {
+                const result = await api.copyBudgets(year, month);
+                showToast(`Copied ${result.copied} budgets from ${getMonthName(result.from.month)} ${result.from.year}`, 'success');
+                loadBudgets();
+            } catch (err) {
+                showToast('No budgets found for previous month', 'error');
+            }
+        });
+
+        // Show rebalance
+        document.getElementById('showRebalance').addEventListener('click', async () => {
+            const card = document.getElementById('rebalanceCard');
+            card.classList.remove('hidden');
+            loadRebalanceSuggestions();
+        });
+
+        // Close rebalance
+        document.getElementById('closeRebalance').addEventListener('click', () => {
+            document.getElementById('rebalanceCard').classList.add('hidden');
+        });
+
+        // FAB
+        document.getElementById('fabAdd').addEventListener('click', () => {
+            window.location.href = 'index.html?quickadd=true';
+        });
+
+        async function loadBudgets() {
+            const { year, month } = getCurrentPeriod();
+
+            try {
+                // Load categories
+                const catResult = await api.getCategories();
+                categories = catResult.categories;
+
+                // Load month summary for actuals
+                const summary = await api.getMonthSummary(year, month);
+
+                // Build actuals map
+                actuals = {};
+                summary.budget_health.forEach(b => {
+                    actuals[b.category_id] = b.actual_cents;
+                });
+
+                // Load budgets
+                const budgetResult = await api.getBudgets(year, month);
+                budgets = budgetResult.budgets;
+
+                renderBudgetTable();
+                updateSummary();
+
+            } catch (err) {
+                console.error('Failed to load budgets:', err);
+                showToast('Failed to load budgets', 'error');
+            }
+        }
+
+        function renderBudgetTable() {
+            const table = document.getElementById('budgetTable');
+
+            // Create budget map for faster lookup
+            const budgetMap = {};
+            budgets.forEach(b => {
+                budgetMap[b.category_id] = b.budget_cents;
+            });
+
+            table.innerHTML = `
+        <div class="budget-row header">
+          <span>Category</span>
+          <span style="text-align: right;">Budget</span>
+          <span style="text-align: right;">Actual</span>
+          <span style="text-align: right;">Variance</span>
+        </div>
+        ${categories.map(c => {
+                const budget = budgetMap[c.id] || 0;
+                const actual = actuals[c.id] || 0;
+                const variance = budget - actual;
+
+                return `
+            <div class="budget-row" data-category-id="${c.id}">
+              <div class="budget-category">
+                <span class="category-color" style="background: ${c.color}"></span>
+                <span>${c.name}</span>
+              </div>
+              <div>
+                <input type="text" 
+                       class="budget-input" 
+                       value="${(budget / 100).toFixed(2)}" 
+                       data-category-id="${c.id}"
+                       inputmode="decimal">
+              </div>
+              <div class="budget-actual">${formatCurrency(actual)}</div>
+              <div class="budget-variance ${variance >= 0 ? 'positive' : 'negative'}">
+                ${formatCurrency(variance, true)}
+              </div>
+            </div>
+          `;
+            }).join('')}
+      `;
+
+            // Add input handlers
+            table.querySelectorAll('.budget-input').forEach(input => {
+                input.addEventListener('change', (e) => {
+                    const categoryId = parseInt(e.target.dataset.categoryId);
+                    const value = parseFloat(e.target.value.replace(/[^0-9.]/g, '')) || 0;
+                    pendingChanges[categoryId] = dollarsToCents(value);
+                    e.target.value = value.toFixed(2);
+                    saveBudgets();
+                    updateRow(categoryId);
+                });
+
+                input.addEventListener('focus', (e) => {
+                    e.target.select();
+                });
+            });
+        }
+
+        function updateRow(categoryId) {
+            const row = document.querySelector(`.budget-row[data-category-id="${categoryId}"]`);
+            if (!row) return;
+
+            const budget = pendingChanges[categoryId] ??
+                (budgets.find(b => b.category_id === categoryId)?.budget_cents || 0);
+            const actual = actuals[categoryId] || 0;
+            const variance = budget - actual;
+
+            const varianceEl = row.querySelector('.budget-variance');
+            varianceEl.textContent = formatCurrency(variance, true);
+            varianceEl.className = `budget-variance ${variance >= 0 ? 'positive' : 'negative'}`;
+
+            updateSummary();
+        }
+
+        function updateSummary() {
+            // Calculate totals
+            let totalBudget = 0;
+            let totalActual = 0;
+
+            categories.forEach(c => {
+                const budget = pendingChanges[c.id] ??
+                    (budgets.find(b => b.category_id === c.id)?.budget_cents || 0);
+                totalBudget += budget;
+                totalActual += actuals[c.id] || 0;
+            });
+
+            const variance = totalBudget - totalActual;
+
+            document.getElementById('totalBudget').textContent = formatCurrency(totalBudget);
+            document.getElementById('totalActual').textContent = formatCurrency(totalActual);
+
+            const varianceEl = document.getElementById('totalVariance');
+            varianceEl.textContent = formatCurrency(variance, true);
+            varianceEl.className = `budget-summary-value ${variance >= 0 ? 'positive' : 'negative'}`;
+        }
+
+        const saveBudgets = debounce(async () => {
+            const { year, month } = getCurrentPeriod();
+
+            // Build budget updates
+            const updates = categories.map(c => ({
+                category_id: c.id,
+                budget_cents: pendingChanges[c.id] ??
+                    (budgets.find(b => b.category_id === c.id)?.budget_cents || 0),
+            }));
+
+            try {
+                await api.updateBudgets(year, month, updates);
+
+                // Show save indicator
+                const indicator = document.getElementById('saveIndicator');
+                indicator.classList.add('visible');
+                setTimeout(() => indicator.classList.remove('visible'), 2000);
+
+                // Clear pending changes
+                pendingChanges = {};
+
+            } catch (err) {
+                console.error('Failed to save budgets:', err);
+                showToast('Failed to save budgets', 'error');
+            }
+        }, 500);
+
+        async function loadRebalanceSuggestions() {
+            const body = document.getElementById('rebalanceBody');
+
+            try {
+                const result = await api.getRebalanceSuggestions();
+                const suggestions = result.suggestions || [];
+
+                if (suggestions.length === 0) {
+                    body.innerHTML = `
+            <div class="empty-state" style="padding: var(--spacing-lg);">
+              <div class="icon">✨</div>
+              <p>No categories are consistently over budget!</p>
+            </div>
+          `;
+                    return;
+                }
+
+                body.innerHTML = suggestions.map(s => `
+          <div class="rebalance-item">
+            <div class="rebalance-category">
+              <span class="category-color" style="background: ${s.category_color}; width: 12px; height: 12px; border-radius: 50%;"></span>
+              <span>${s.category_name}</span>
+            </div>
+            <div class="rebalance-stats">
+              <div class="rebalance-times">${s.times_over}x over budget</div>
+              <div class="rebalance-suggestion">+${formatCurrency(s.suggested_increase_cents)}</div>
+            </div>
+          </div>
+        `).join('');
+
+            } catch (err) {
+                console.error('Failed to load rebalance suggestions:', err);
+                body.innerHTML = `<div class="empty-state"><p>Failed to load suggestions</p></div>`;
+            }
+        }
+    </script>
+</body>
+
+</html>

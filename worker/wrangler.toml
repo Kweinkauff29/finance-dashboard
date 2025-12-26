@@ -1,0 +1,12 @@
+name = "finance-dashboard-api"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "finance-db"
+database_id = "placeholder-will-be-replaced-after-creation"
+migrations_dir = "migrations"
+
+[vars]
+ENVIRONMENT = "development"

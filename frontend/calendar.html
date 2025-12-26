@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendar - Finance Dashboard</title>
+    <meta name="description" content="View spending by day on your personal finance calendar">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="css/app.css">
+    <style>
+        .calendar-container {
+            background: var(--bg-surface);
+            border-radius: var(--radius-xl);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        .calendar-filters {
+            display: flex;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-md);
+            border-bottom: 1px solid var(--border-color);
+            overflow-x: auto;
+        }
+
+        .filter-btn {
+            padding: var(--spacing-xs) var(--spacing-md);
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-full);
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all var(--transition-fast);
+        }
+
+        .filter-btn:hover {
+            border-color: var(--border-color-light);
+        }
+
+        .filter-btn.active {
+            background: var(--primary-light);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .calendar-body {
+            padding: var(--spacing-md);
+        }
+
+        .day-detail {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg-surface);
+            border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+            border-top: 1px solid var(--border-color);
+            max-height: 60vh;
+            overflow-y: auto;
+            transform: translateY(100%);
+            transition: transform var(--transition-slow);
+            z-index: var(--z-modal);
+        }
+
+        .day-detail.active {
+            transform: translateY(0);
+        }
+
+        .day-detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-lg);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            background: var(--bg-surface);
+        }
+
+        .day-detail-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .day-detail-total {
+            font-family: var(--font-mono);
+            font-weight: 600;
+            font-size: 1.25rem;
+        }
+
+        .day-detail-body {
+            padding: var(--spacing-md);
+        }
+
+        .paycheck-indicator {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-sm) var(--spacing-md);
+            background: var(--success-light);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .paycheck-indicator.bonus {
+            background: var(--warning-light);
+        }
+
+        .paycheck-indicator .icon {
+            font-size: 1.25rem;
+        }
+
+        .paycheck-amount {
+            font-family: var(--font-mono);
+            font-weight: 600;
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            visibility: hidden;
+            transition: all var(--transition-base);
+            z-index: calc(var(--z-modal) - 1);
+        }
+
+        .overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .month-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-sm);
+            padding: var(--spacing-md);
+            background: var(--bg-surface-2);
+            border-radius: var(--radius-lg);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .month-stat {
+            text-align: center;
+        }
+
+        .month-stat-value {
+            font-family: var(--font-mono);
+            font-weight: 600;
+            font-size: 1.125rem;
+        }
+
+        .month-stat-label {
+            font-size: 0.625rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page">
+        <!-- App Header -->
+        <header class="app-header container">
+            <div class="header-top">
+                <div class="app-logo">💰 Finance</div>
+                <div class="month-selector">
+                    <button data-action="prev" aria-label="Previous month">←</button>
+                    <span class="current-month">January 2026</span>
+                    <button data-action="next" aria-label="Next month">→</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="container">
+            <!-- Month Stats -->
+            <div class="month-stats" id="monthStats">
+                <div class="month-stat">
+                    <div class="month-stat-value" id="statTotal">$0</div>
+                    <div class="month-stat-label">Total Spent</div>
+                </div>
+                <div class="month-stat">
+                    <div class="month-stat-value" id="statDays">0</div>
+                    <div class="month-stat-label">Active Days</div>
+                </div>
+                <div class="month-stat">
+                    <div class="month-stat-value" id="statAvg">$0</div>
+                    <div class="month-stat-label">Avg/Day</div>
+                </div>
+            </div>
+
+            <!-- Calendar -->
+            <div class="calendar-container">
+                <div class="calendar-filters" id="calendarFilters">
+                    <button class="filter-btn active" data-category="">All Categories</button>
+                </div>
+                <div class="calendar-body">
+                    <div class="calendar-grid" id="calendarGrid">
+                        <div class="calendar-header">Sun</div>
+                        <div class="calendar-header">Mon</div>
+                        <div class="calendar-header">Tue</div>
+                        <div class="calendar-header">Wed</div>
+                        <div class="calendar-header">Thu</div>
+                        <div class="calendar-header">Fri</div>
+                        <div class="calendar-header">Sat</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Day Detail Sheet -->
+        <div class="overlay" id="overlay"></div>
+        <div class="day-detail" id="dayDetail">
+            <div class="day-detail-header">
+                <div>
+                    <div class="day-detail-title" id="dayTitle">Select a day</div>
+                    <div class="text-sm text-muted" id="daySubtitle"></div>
+                </div>
+                <div class="day-detail-total" id="dayTotal">$0.00</div>
+            </div>
+            <div class="day-detail-body" id="dayDetailBody">
+                <div class="empty-state">
+                    <p>Tap a day to see transactions</p>
+                </div>
+            </div>
+            <div style="padding: var(--spacing-md); padding-bottom: 100px;">
+                <button class="btn btn-primary btn-block" id="addExpenseBtn">
+                    + Add Expense for This Day
+                </button>
+            </div>
+        </div>
+
+        <!-- Floating Action Button -->
+        <button class="fab" id="fabAdd" aria-label="Add expense">+</button>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <div class="nav-items">
+                <a href="index.html" class="nav-item">
+                    <span class="icon">🏠</span>
+                    Home
+                </a>
+                <a href="calendar.html" class="nav-item active">
+                    <span class="icon">📅</span>
+                    Calendar
+                </a>
+                <a href="transactions.html" class="nav-item">
+                    <span class="icon">💳</span>
+                    Transactions
+                </a>
+                <a href="budgets.html" class="nav-item">
+                    <span class="icon">📋</span>
+                    Budgets
+                </a>
+                <a href="goals.html" class="nav-item">
+                    <span class="icon">🎯</span>
+                    Goals
+                </a>
+            </div>
+        </nav>
+    </div>
+
+    <script type="module">
+        import { api, formatCurrency, formatDate, getMonthName } from './js/api.js';
+        import { initApp, getCurrentPeriod, showToast, setCategoryColors, getCategoryColor } from './js/app.js';
+
+        // State
+        let categories = [];
+        let calendarData = {};
+        let selectedDate = null;
+        let selectedCategory = null;
+
+        // Initialize
+        initApp();
+        loadCalendar();
+
+        // Listen for month changes
+        window.addEventListener('periodchange', loadCalendar);
+
+        // FAB click
+        document.getElementById('fabAdd').addEventListener('click', () => {
+            window.location.href = selectedDate
+                ? `index.html?quickadd=true&date=${selectedDate}`
+                : 'index.html?quickadd=true';
+        });
+
+        // Add expense for selected day
+        document.getElementById('addExpenseBtn').addEventListener('click', () => {
+            if (selectedDate) {
+                window.location.href = `index.html?quickadd=true&date=${selectedDate}`;
+            }
+        });
+
+        // Close day detail
+        document.getElementById('overlay').addEventListener('click', closeDayDetail);
+
+        async function loadCalendar() {
+            const { year, month } = getCurrentPeriod();
+
+            try {
+                // Load categories
+                const catResult = await api.getCategories();
+                categories = catResult.categories;
+                setCategoryColors(categories);
+                renderFilters();
+
+                // Calculate date range for this month
+                const start = `${year}-${String(month).padStart(2, '0')}-01`;
+                const lastDay = new Date(year, month, 0).getDate();
+                const end = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+                // Load calendar data
+                const data = await api.getCalendarData(start, end, selectedCategory);
+                calendarData = data;
+
+                renderCalendar(year, month);
+                renderStats(data);
+
+            } catch (err) {
+                console.error('Failed to load calendar:', err);
+                showToast('Failed to load calendar', 'error');
+            }
+        }
+
+        function renderFilters() {
+            const container = document.getElementById('calendarFilters');
+            container.innerHTML = `
+        <button class="filter-btn ${!selectedCategory ? 'active' : ''}" data-category="">All Categories</button>
+        ${categories.map(c => `
+          <button class="filter-btn ${selectedCategory == c.id ? 'active' : ''}" 
+                  data-category="${c.id}"
+                  style="${selectedCategory == c.id ? `border-color: ${c.color}` : ''}">
+            ${c.name}
+          </button>
+        `).join('')}
+      `;
+
+            container.addEventListener('click', (e) => {
+                const btn = e.target.closest('.filter-btn');
+                if (!btn) return;
+
+                selectedCategory = btn.dataset.category || null;
+                loadCalendar();
+            });
+        }
+
+        function renderCalendar(year, month) {
+            const container = document.getElementById('calendarGrid');
+            const today = new Date().toISOString().split('T')[0];
+
+            // Keep headers
+            container.innerHTML = `
+        <div class="calendar-header">Sun</div>
+        <div class="calendar-header">Mon</div>
+        <div class="calendar-header">Tue</div>
+        <div class="calendar-header">Wed</div>
+        <div class="calendar-header">Thu</div>
+        <div class="calendar-header">Fri</div>
+        <div class="calendar-header">Sat</div>
+      `;
+
+            // First day of month
+            const firstDay = new Date(year, month - 1, 1);
+            const startingDayOfWeek = firstDay.getDay();
+
+            // Days in month
+            const daysInMonth = new Date(year, month, 0).getDate();
+
+            // Days in previous month (for leading days)
+            const daysInPrevMonth = new Date(year, month - 1, 0).getDate();
+
+            // Create calendar data map
+            const dataMap = {};
+            (calendarData.calendar || []).forEach(d => {
+                dataMap[d.date] = d;
+            });
+
+            // Paycheck map
+            const paycheckMap = {};
+            (calendarData.paychecks || []).forEach(p => {
+                paycheckMap[p.date] = p;
+            });
+
+            // Find max spending for heat calculation
+            const maxSpend = Math.max(...Object.values(dataMap).map(d => d.total_cents), 1);
+
+            // Add leading days from previous month
+            for (let i = startingDayOfWeek - 1; i >= 0; i--) {
+                const day = daysInPrevMonth - i;
+                container.innerHTML += `
+          <div class="calendar-day other-month">
+            <span class="day-number">${day}</span>
+          </div>
+        `;
+            }
+
+            // Add days of current month
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const dayData = dataMap[dateStr];
+                const paycheck = paycheckMap[dateStr];
+                const isToday = dateStr === today;
+                const isSelected = dateStr === selectedDate;
+
+                // Calculate heat level (1-5)
+                let heatClass = '';
+                if (dayData && dayData.total_cents > 0) {
+                    const heatLevel = Math.ceil((dayData.total_cents / maxSpend) * 5);
+                    heatClass = `heat-${heatLevel}`;
+                }
+
+                container.innerHTML += `
+          <div class="calendar-day ${heatClass} ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}" 
+               data-date="${dateStr}">
+            ${paycheck ? `<div class="paycheck-dot ${paycheck.type === 'bonus' ? 'bonus' : ''}"></div>` : ''}
+            <span class="day-number">${day}</span>
+            ${dayData && dayData.total_cents > 0 ? `
+              <span class="day-amount">${formatCurrency(dayData.total_cents).replace('$', '')}</span>
+            ` : ''}
+          </div>
+        `;
+            }
+
+            // Add trailing days to complete the grid
+            const totalCells = startingDayOfWeek + daysInMonth;
+            const remainingCells = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+            for (let i = 1; i <= remainingCells; i++) {
+                container.innerHTML += `
+          <div class="calendar-day other-month">
+            <span class="day-number">${i}</span>
+          </div>
+        `;
+            }
+
+            // Add click handlers
+            container.querySelectorAll('.calendar-day:not(.other-month)').forEach(el => {
+                el.addEventListener('click', () => {
+                    selectDay(el.dataset.date);
+                });
+            });
+        }
+
+        function renderStats(data) {
+            const calendar = data.calendar || [];
+            const totalSpent = calendar.reduce((sum, d) => sum + d.total_cents, 0);
+            const activeDays = calendar.filter(d => d.total_cents > 0).length;
+            const avgPerDay = activeDays > 0 ? totalSpent / activeDays : 0;
+
+            document.getElementById('statTotal').textContent = formatCurrency(totalSpent);
+            document.getElementById('statDays').textContent = activeDays;
+            document.getElementById('statAvg').textContent = formatCurrency(avgPerDay);
+        }
+
+        async function selectDay(date) {
+            selectedDate = date;
+
+            // Update calendar selection
+            document.querySelectorAll('.calendar-day').forEach(el => {
+                el.classList.toggle('selected', el.dataset.date === date);
+            });
+
+            // Show day detail
+            const detail = document.getElementById('dayDetail');
+            const overlay = document.getElementById('overlay');
+
+            try {
+                const dayData = await api.getDayDetail(date);
+                renderDayDetail(dayData);
+
+                detail.classList.add('active');
+                overlay.classList.add('active');
+            } catch (err) {
+                console.error('Failed to load day detail:', err);
+                showToast('Failed to load day details', 'error');
+            }
+        }
+
+        function renderDayDetail(data) {
+            const dateObj = new Date(data.date + 'T00:00:00');
+            const formattedDate = dateObj.toLocaleDateString('en-US', {
+                weekday: 'long',
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric'
+            });
+
+            document.getElementById('dayTitle').textContent = formattedDate;
+            document.getElementById('daySubtitle').textContent = `${data.transaction_count} transaction${data.transaction_count !== 1 ? 's' : ''}`;
+            document.getElementById('dayTotal').textContent = formatCurrency(data.total_cents);
+
+            const body = document.getElementById('dayDetailBody');
+
+            let html = '';
+
+            // Show paycheck if present
+            if (data.paycheck) {
+                html += `
+          <div class="paycheck-indicator ${data.paycheck.type === 'bonus' ? 'bonus' : ''}">
+            <span class="icon">💰</span>
+            <div>
+              <div style="font-weight: 500;">${data.paycheck.type === 'bonus' ? 'Bonus Paycheck' : 'Paycheck'}</div>
+              <div class="text-sm text-muted">${data.paycheck.note || ''}</div>
+            </div>
+            <span class="paycheck-amount" style="margin-left: auto;">${formatCurrency(data.paycheck.amount_cents)}</span>
+          </div>
+        `;
+            }
+
+            // Show transactions
+            if (data.transactions && data.transactions.length > 0) {
+                html += `
+          <div class="transaction-list">
+            ${data.transactions.map(tx => `
+              <div class="transaction-item" data-id="${tx.id}">
+                <div class="transaction-left">
+                  <div class="transaction-category-dot" style="background: ${tx.category_color}"></div>
+                  <div class="transaction-details">
+                    <div class="transaction-merchant">${tx.merchant || tx.category_name}</div>
+                    <div class="transaction-meta">
+                      <span>${tx.category_name}</span>
+                      ${tx.note ? `<span>• ${tx.note}</span>` : ''}
+                    </div>
+                  </div>
+                </div>
+                <div class="transaction-amount">${formatCurrency(tx.amount_cents)}</div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+            } else if (!data.paycheck) {
+                html += `
+          <div class="empty-state">
+            <div class="icon">📭</div>
+            <p>No transactions on this day</p>
+          </div>
+        `;
+            }
+
+            body.innerHTML = html;
+
+            // Add click handlers for transactions
+            body.querySelectorAll('.transaction-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    window.location.href = `transactions.html?id=${item.dataset.id}`;
+                });
+            });
+        }
+
+        function closeDayDetail() {
+            document.getElementById('dayDetail').classList.remove('active');
+            document.getElementById('overlay').classList.remove('active');
+        }
+    </script>
+</body>
+
+</html>

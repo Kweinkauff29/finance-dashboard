@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,9 +8,12 @@
   <meta name="description" content="Personal finance dashboard - track budgets, spending, and savings goals">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap"
+    rel="stylesheet">
   <link rel="stylesheet" href="css/app.css">
 </head>
+
 <body>
   <div class="page">
     <!-- App Header -->
@@ -125,6 +129,10 @@
           <span class="icon">📋</span>
           Budgets
         </a>
+        <a href="reports.html" class="nav-item">
+          <span class="icon">📊</span>
+          Year
+        </a>
         <a href="goals.html" class="nav-item">
           <span class="icon">🎯</span>
           Goals
@@ -146,7 +154,7 @@
             <label class="form-label" for="amount">Amount</label>
             <input type="text" id="amount" class="form-input large" placeholder="$0.00" inputmode="decimal" required>
           </div>
-          
+
           <div class="form-row">
             <div class="form-group">
               <label class="form-label" for="merchant">Merchant</label>
@@ -241,7 +249,7 @@
 
     async function loadDashboard() {
       const { year, month } = getCurrentPeriod();
-      
+
       try {
         // Load categories first
         const catResult = await api.getCategories();
@@ -274,7 +282,7 @@
 
       baseIncome.textContent = formatCurrency(summary.income.base_cents);
       bonusSavings.textContent = formatCurrency(summary.income.bonus_cents);
-      
+
       const remainingCents = summary.totals.remaining_cents;
       remaining.textContent = formatCurrency(remainingCents);
       remaining.className = 'summary-value ' + (remainingCents >= 0 ? 'positive' : 'negative');
@@ -282,7 +290,7 @@
 
     function renderBudgetHealth(budgetHealth) {
       const container = document.getElementById('budgetHealthBody');
-      
+
       if (!budgetHealth || budgetHealth.length === 0) {
         container.innerHTML = `
           <div class="empty-state">
@@ -313,7 +321,7 @@
 
     function renderTopMerchants(merchants) {
       const container = document.getElementById('merchantsBody');
-      
+
       if (!merchants || merchants.length === 0) {
         container.innerHTML = `
           <div class="empty-state">
@@ -340,7 +348,7 @@
 
     function renderRainyDay(goal) {
       const container = document.getElementById('rainyDayBody');
-      
+
       if (!goal) {
         container.innerHTML = `
           <div class="empty-state">
@@ -352,7 +360,7 @@
       }
 
       const percent = goal.progress_percent || 0;
-      
+
       container.innerHTML = `
         <div class="goal-bar">
           <div class="goal-header">
@@ -376,15 +384,15 @@
     function renderTrendChart(dailyTotals, year, month) {
       const canvas = document.getElementById('trendCanvas');
       const ctx = canvas.getContext('2d');
-      
+
       // Set canvas size
       const container = canvas.parentElement;
       canvas.width = container.clientWidth;
       canvas.height = 200;
-      
+
       // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
+
       if (!dailyTotals || dailyTotals.length === 0) {
         ctx.fillStyle = '#6b7280';
         ctx.font = '14px Inter';
@@ -395,14 +403,14 @@
 
       // Get days in month
       const daysInMonth = new Date(year, month, 0).getDate();
-      
+
       // Create data array for all days
       const data = [];
       const totalsMap = {};
       dailyTotals.forEach(d => {
         totalsMap[d.date] = d.total_cents;
       });
-      
+
       for (let day = 1; day <= daysInMonth; day++) {
         const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         data.push(totalsMap[dateStr] || 0);
@@ -410,12 +418,12 @@
 
       // Find max value
       const maxValue = Math.max(...data, 1);
-      
+
       // Chart dimensions
       const padding = { top: 20, right: 20, bottom: 30, left: 50 };
       const chartWidth = canvas.width - padding.left - padding.right;
       const chartHeight = canvas.height - padding.top - padding.bottom;
-      
+
       // Draw grid lines
       ctx.strokeStyle = '#333';
       ctx.lineWidth = 1;
@@ -431,13 +439,13 @@
       ctx.beginPath();
       ctx.strokeStyle = '#6366f1';
       ctx.lineWidth = 2;
-      
+
       const pointWidth = chartWidth / (data.length - 1 || 1);
-      
+
       data.forEach((value, i) => {
         const x = padding.left + i * pointWidth;
         const y = padding.top + chartHeight - (value / maxValue) * chartHeight;
-        
+
         if (i === 0) {
           ctx.moveTo(x, y);
         } else {
@@ -450,7 +458,7 @@
       ctx.lineTo(padding.left + (data.length - 1) * pointWidth, padding.top + chartHeight);
       ctx.lineTo(padding.left, padding.top + chartHeight);
       ctx.closePath();
-      
+
       const gradient = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartHeight);
       gradient.addColorStop(0, 'rgba(99, 102, 241, 0.3)');
       gradient.addColorStop(1, 'rgba(99, 102, 241, 0)');
@@ -491,7 +499,7 @@
     function renderCategoryPills() {
       const container = document.getElementById('categoryPills');
       const lastUsed = getLastUsedCategory();
-      
+
       container.innerHTML = categories.map(c => `
         <button type="button" class="category-pill ${c.id == lastUsed ? 'selected' : ''}" 
                 data-category-id="${c.id}" 
@@ -513,13 +521,13 @@
       container.addEventListener('click', (e) => {
         const pill = e.target.closest('.category-pill');
         if (!pill) return;
-        
+
         container.querySelectorAll('.category-pill').forEach(p => {
           p.classList.remove('selected');
           p.style.borderColor = '';
           p.style.background = '';
         });
-        
+
         pill.classList.add('selected');
         selectedCategory = parseInt(pill.dataset.categoryId);
         const cat = categories.find(c => c.id === selectedCategory);
@@ -533,14 +541,14 @@
     function openQuickAdd(prefillDate = null) {
       const form = document.getElementById('quickAddForm');
       form.reset();
-      
+
       // Set date to today or prefilled
       const dateInput = document.getElementById('date');
       dateInput.value = prefillDate || new Date().toISOString().split('T')[0];
-      
+
       // Reset category selection to last used
       renderCategoryPills();
-      
+
       openModal('quickAddModal');
       document.getElementById('amount').focus();
     }
@@ -548,7 +556,7 @@
     async function saveExpense() {
       const amountInput = document.getElementById('amount').value.replace(/[^0-9.]/g, '');
       const amount = parseFloat(amountInput);
-      
+
       if (!amount || amount <= 0) {
         showToast('Please enter a valid amount', 'error');
         return;
@@ -619,12 +627,12 @@
         container.classList.add('hidden');
         return;
       }
-      
+
       container.innerHTML = merchants.map(m => `
         <div class="suggestion-item" data-merchant="${m}">${m}</div>
       `).join('');
       container.classList.remove('hidden');
-      
+
       // Handle click on suggestion
       container.querySelectorAll('.suggestion-item').forEach(item => {
         item.addEventListener('click', () => {
@@ -646,4 +654,5 @@
     window.openQuickAdd = openQuickAdd;
   </script>
 </body>
+
 </html>

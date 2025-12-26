@@ -5,7 +5,7 @@ compatibility_date = "2024-12-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "finance-db"
-database_id = "placeholder-will-be-replaced-after-creation"
+database_id = "177dc265-32c6-42f6-8093-188b59d1b9f2"
 migrations_dir = "migrations"
 
 [vars]

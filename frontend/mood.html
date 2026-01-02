@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mood Tracker - Finance Dashboard</title>
+    <meta name="description" content="Track your daily mood throughout the year">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="css/app.css">
+    <style>
+        .mood-grid-container {
+            overflow-x: auto;
+            padding: 1rem 0;
+        }
+
+        .mood-grid {
+            display: grid;
+            grid-template-columns: auto repeat(31, 1fr);
+            gap: 2px;
+            min-width: 700px;
+        }
+
+        .mood-header {
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-align: center;
+            color: var(--text-muted);
+            padding: 4px 2px;
+        }
+
+        .mood-month-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            padding: 4px 8px;
+            text-align: right;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+        }
+
+        .mood-cell {
+            aspect-ratio: 1;
+            border-radius: 3px;
+            background: var(--surface-elevated);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s;
+            min-width: 16px;
+            min-height: 16px;
+        }
+
+        .mood-cell:hover {
+            transform: scale(1.2);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            z-index: 10;
+            position: relative;
+        }
+
+        .mood-cell.disabled {
+            background: transparent;
+            cursor: default;
+        }
+
+        .mood-cell.disabled:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .mood-cell.future {
+            background: var(--surface);
+            opacity: 0.3;
+            cursor: default;
+        }
+
+        .mood-cell.future:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Mood colors */
+        .mood-1 {
+            background: #991b1b;
+        }
+
+        /* Terrible - dark red */
+        .mood-2 {
+            background: #dc2626;
+        }
+
+        /* Bad - red */
+        .mood-3 {
+            background: #eab308;
+        }
+
+        /* Okay - yellow */
+        .mood-4 {
+            background: #22c55e;
+        }
+
+        /* Good - light green */
+        .mood-5 {
+            background: #16a34a;
+        }
+
+        /* Really Good - bright green */
+
+        /* Legend */
+        .mood-legend {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+        }
+
+        /* Mood picker in modal */
+        .mood-picker {
+            display: flex;
+            justify-content: space-between;
+            gap: 0.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .mood-option {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 1rem 0.5rem;
+            border-radius: 12px;
+            background: var(--surface-elevated);
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mood-option:hover {
+            background: var(--surface);
+        }
+
+        .mood-option.selected {
+            border-color: var(--primary);
+            background: var(--primary-soft);
+        }
+
+        .mood-option .emoji {
+            font-size: 1.75rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .mood-option .label {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        .mood-option.selected .label {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        /* Stats */
+        .mood-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .mood-stat {
+            text-align: center;
+            padding: 1rem;
+            background: var(--surface-elevated);
+            border-radius: 12px;
+        }
+
+        .mood-stat .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .mood-stat .label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page">
+        <!-- App Header -->
+        <header class="app-header container">
+            <div class="header-top">
+                <div class="app-logo">😊 Mood</div>
+                <div class="month-selector">
+                    <button id="prevYear" aria-label="Previous year">←</button>
+                    <span class="current-month" id="currentYear">2026</span>
+                    <button id="nextYear" aria-label="Next year">→</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="container">
+            <!-- Stats -->
+            <section class="card mb-lg">
+                <div class="card-body">
+                    <div class="mood-stats" id="moodStats">
+                        <div class="mood-stat">
+                            <div class="value" id="statLogged">0</div>
+                            <div class="label">Days Logged</div>
+                        </div>
+                        <div class="mood-stat">
+                            <div class="value" id="statAverage">-</div>
+                            <div class="label">Average Mood</div>
+                        </div>
+                        <div class="mood-stat">
+                            <div class="value" id="statBestStreak">0</div>
+                            <div class="label">Best Streak</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Year Grid -->
+            <section class="card mb-lg">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <span class="icon">📅</span>
+                        Year at a Glance
+                    </h2>
+                </div>
+                <div class="card-body">
+                    <div class="mood-grid-container">
+                        <div class="mood-grid" id="moodGrid"></div>
+                    </div>
+                    <div class="mood-legend">
+                        <div class="legend-item">
+                            <div class="legend-color mood-5"></div>
+                            <span>Really Good!</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color mood-4"></div>
+                            <span>Good</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color mood-3"></div>
+                            <span>Okay</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color mood-2"></div>
+                            <span>Bad</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color mood-1"></div>
+                            <span>Terrible</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <div class="nav-items">
+                <a href="index.html" class="nav-item">
+                    <span class="icon">🏠</span>
+                    Home
+                </a>
+                <a href="calendar.html" class="nav-item">
+                    <span class="icon">📅</span>
+                    Calendar
+                </a>
+                <a href="transactions.html" class="nav-item">
+                    <span class="icon">💳</span>
+                    Transactions
+                </a>
+                <a href="budgets.html" class="nav-item">
+                    <span class="icon">📋</span>
+                    Budgets
+                </a>
+                <a href="reports.html" class="nav-item">
+                    <span class="icon">📊</span>
+                    Year
+                </a>
+                <a href="mood.html" class="nav-item active">
+                    <span class="icon">😊</span>
+                    Mood
+                </a>
+            </div>
+        </nav>
+    </div>
+
+    <!-- Mood Entry Modal -->
+    <div class="modal-overlay" id="moodModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalTitle">Log Mood</h3>
+                <button class="modal-close" aria-label="Close">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="mood-picker" id="moodPicker">
+                    <button type="button" class="mood-option" data-level="5">
+                        <span class="emoji">😄</span>
+                        <span class="label">Really Good!</span>
+                    </button>
+                    <button type="button" class="mood-option" data-level="4">
+                        <span class="emoji">🙂</span>
+                        <span class="label">Good</span>
+                    </button>
+                    <button type="button" class="mood-option" data-level="3">
+                        <span class="emoji">😐</span>
+                        <span class="label">Okay</span>
+                    </button>
+                    <button type="button" class="mood-option" data-level="2">
+                        <span class="emoji">😕</span>
+                        <span class="label">Bad</span>
+                    </button>
+                    <button type="button" class="mood-option" data-level="1">
+                        <span class="emoji">😢</span>
+                        <span class="label">Terrible</span>
+                    </button>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="moodNote">Note (optional)</label>
+                    <input type="text" id="moodNote" class="form-input" placeholder="How are you feeling?">
+                </div>
+
+                <button type="button" class="btn btn-primary btn-block btn-lg" id="saveMood">
+                    Save Mood
+                </button>
+
+                <button type="button" class="btn btn-danger btn-block mt-md hidden" id="deleteMood">
+                    Delete Entry
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { api } from './js/api.js';
+        import { showToast, openModal, closeModal } from './js/app.js';
+
+        const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+        let currentYear = new Date().getFullYear();
+        let moodData = {};
+        let selectedDate = null;
+        let selectedLevel = null;
+
+        // Initialize
+        document.getElementById('currentYear').textContent = currentYear;
+        loadMoodData();
+
+        // Year navigation
+        document.getElementById('prevYear').addEventListener('click', () => {
+            currentYear--;
+            document.getElementById('currentYear').textContent = currentYear;
+            loadMoodData();
+        });
+
+        document.getElementById('nextYear').addEventListener('click', () => {
+            currentYear++;
+            document.getElementById('currentYear').textContent = currentYear;
+            loadMoodData();
+        });
+
+        // Mood picker selection
+        document.getElementById('moodPicker').addEventListener('click', (e) => {
+            const option = e.target.closest('.mood-option');
+            if (!option) return;
+
+            document.querySelectorAll('.mood-option').forEach(o => o.classList.remove('selected'));
+            option.classList.add('selected');
+            selectedLevel = parseInt(option.dataset.level);
+        });
+
+        // Save mood
+        document.getElementById('saveMood').addEventListener('click', async () => {
+            if (!selectedLevel) {
+                showToast('Please select a mood level', 'error');
+                return;
+            }
+
+            try {
+                await api.setMood({
+                    date: selectedDate,
+                    mood_level: selectedLevel,
+                    note: document.getElementById('moodNote').value || null,
+                });
+
+                closeModal('moodModal');
+                showToast('Mood saved!', 'success');
+                loadMoodData();
+            } catch (err) {
+                console.error('Failed to save mood:', err);
+                showToast('Failed to save mood', 'error');
+            }
+        });
+
+        // Delete mood
+        document.getElementById('deleteMood').addEventListener('click', async () => {
+            if (!selectedDate) return;
+
+            const [year, month, day] = selectedDate.split('-');
+            try {
+                await api.deleteMood(year, month, day);
+                closeModal('moodModal');
+                showToast('Mood entry deleted', 'success');
+                loadMoodData();
+            } catch (err) {
+                console.error('Failed to delete mood:', err);
+                showToast('Failed to delete mood', 'error');
+            }
+        });
+
+        // Close modal
+        document.querySelector('#moodModal .modal-close').addEventListener('click', () => {
+            closeModal('moodModal');
+        });
+
+        async function loadMoodData() {
+            try {
+                const result = await api.getMoodYear(currentYear);
+                moodData = {};
+                (result.entries || []).forEach(e => {
+                    moodData[e.date] = e;
+                });
+                renderGrid();
+                renderStats();
+            } catch (err) {
+                console.error('Failed to load mood data:', err);
+                showToast('Failed to load mood data', 'error');
+            }
+        }
+
+        function renderGrid() {
+            const grid = document.getElementById('moodGrid');
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
+
+            // Header row (day numbers)
+            let html = '<div class="mood-month-label"></div>';
+            for (let day = 1; day <= 31; day++) {
+                html += `<div class="mood-header">${day}</div>`;
+            }
+
+            // Month rows
+            for (let month = 0; month < 12; month++) {
+                html += `<div class="mood-month-label">${MONTHS[month]}</div>`;
+
+                const daysInMonth = new Date(currentYear, month + 1, 0).getDate();
+
+                for (let day = 1; day <= 31; day++) {
+                    const dateStr = `${currentYear}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const entry = moodData[dateStr];
+
+                    if (day > daysInMonth) {
+                        // Invalid day for this month
+                        html += `<div class="mood-cell disabled"></div>`;
+                    } else if (dateStr > todayStr) {
+                        // Future date
+                        html += `<div class="mood-cell future" data-date="${dateStr}"></div>`;
+                    } else {
+                        // Valid past/today date
+                        const moodClass = entry ? `mood-${entry.mood_level}` : '';
+                        html += `<div class="mood-cell ${moodClass}" data-date="${dateStr}"></div>`;
+                    }
+                }
+            }
+
+            grid.innerHTML = html;
+
+            // Add click handlers for valid cells
+            grid.querySelectorAll('.mood-cell:not(.disabled):not(.future)').forEach(cell => {
+                cell.addEventListener('click', () => {
+                    openMoodModal(cell.dataset.date);
+                });
+            });
+        }
+
+        function openMoodModal(date) {
+            selectedDate = date;
+            selectedLevel = null;
+
+            const entry = moodData[date];
+            const dateObj = new Date(date + 'T00:00:00');
+            const dateFormatted = dateObj.toLocaleDateString('en-US', {
+                weekday: 'long',
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric'
+            });
+
+            document.getElementById('modalTitle').textContent = dateFormatted;
+
+            // Reset picker
+            document.querySelectorAll('.mood-option').forEach(o => o.classList.remove('selected'));
+            document.getElementById('moodNote').value = '';
+
+            // If existing entry, pre-select
+            if (entry) {
+                selectedLevel = entry.mood_level;
+                document.querySelector(`.mood-option[data-level="${entry.mood_level}"]`)?.classList.add('selected');
+                document.getElementById('moodNote').value = entry.note || '';
+                document.getElementById('deleteMood').classList.remove('hidden');
+            } else {
+                document.getElementById('deleteMood').classList.add('hidden');
+            }
+
+            openModal('moodModal');
+        }
+
+        function renderStats() {
+            const entries = Object.values(moodData);
+            const logged = entries.length;
+            const avg = logged > 0
+                ? (entries.reduce((sum, e) => sum + e.mood_level, 0) / logged).toFixed(1)
+                : '-';
+
+            // Calculate best streak of good days (4 or 5)
+            let bestStreak = 0;
+            let currentStreak = 0;
+            const sortedDates = Object.keys(moodData).sort();
+
+            for (const date of sortedDates) {
+                const level = moodData[date].mood_level;
+                if (level >= 4) {
+                    currentStreak++;
+                    bestStreak = Math.max(bestStreak, currentStreak);
+                } else {
+                    currentStreak = 0;
+                }
+            }
+
+            document.getElementById('statLogged').textContent = logged;
+            document.getElementById('statAverage').textContent = avg;
+            document.getElementById('statBestStreak').textContent = bestStreak;
+        }
+    </script>
+</body>
+
+</html>

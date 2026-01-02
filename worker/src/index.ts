@@ -9,6 +9,7 @@ import { goalsRoutes } from './routes/goals';
 import { incomeRoutes } from './routes/income';
 import { transfersRoutes } from './routes/transfers';
 import { reportsRoutes } from './routes/reports';
+import { moodRoutes } from './routes/mood';
 
 export type Bindings = {
     DB: D1Database;
@@ -39,6 +40,7 @@ app.route('/api/goals', goalsRoutes);
 app.route('/api/income', incomeRoutes);
 app.route('/api/transfers', transfersRoutes);
 app.route('/api/reports', reportsRoutes);
+app.route('/api/mood', moodRoutes);
 
 // 404 handler
 app.notFound((c) => {

@@ -150,6 +150,11 @@ export const api = {
         if (params.length) url += `?${params.join('&')}`;
         return request(url);
     },
+
+    // Mood Tracker
+    getMoodYear: (year) => request(`/mood/${year}`),
+    setMood: (data) => request('/mood', { method: 'POST', body: data }),
+    deleteMood: (year, month, day) => request(`/mood/${year}/${month}/${day}`, { method: 'DELETE' }),
 };
 
 export default api;

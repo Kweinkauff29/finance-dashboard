@@ -398,6 +398,14 @@
             selectedLevel = parseInt(option.dataset.level);
         });
 
+        // Save on Enter key
+        document.getElementById('moodNote').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('saveMood').click();
+            }
+        });
+
         // Save mood
         document.getElementById('saveMood').addEventListener('click', async () => {
             if (!selectedLevel) {
